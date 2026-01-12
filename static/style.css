@@ -160,7 +160,7 @@ button:disabled {
 
 /* Upload PDF Link */
 .upload-area {
-    margin-top: 15px;
+    margin-top: 0;
     text-align: center;
     width: 100%;
     display: block;
@@ -168,7 +168,8 @@ button:disabled {
 
 #uploadLink {
     font-size: 0.9rem;
-    color: #7c8ba1; /* Darker gray for visibility */
+    color: #7c8ba1;
+    /* Darker gray for visibility */
     cursor: pointer;
     text-decoration: underline;
     transition: all 0.2s ease;
@@ -177,7 +178,8 @@ button:disabled {
 
 #uploadLink:hover {
     color: var(--accent);
-    background: rgba(255, 255, 255, 0.5); /* Subtle highlight */
+    background: rgba(255, 255, 255, 0.5);
+    /* Subtle highlight */
     border-radius: 5px;
 }
 
