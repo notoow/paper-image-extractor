@@ -1,195 +1,286 @@
-const doiInput = document.getElementById('doiInput');
-const extractBtn = document.getElementById('extractBtn');
-const btnText = document.getElementById('btnText');
-const btnSpinner = document.getElementById('btnSpinner');
-const statusMsg = document.getElementById('statusMsg');
-const resultSection = document.getElementById('resultSection');
-const imgCount = document.getElementById('imgCount');
-const gallery = document.getElementById('gallery');
-const downloadAllBtn = document.getElementById('downloadAllBtn');
+// --- SSOT: Application State ---
+const App = {
+    state: {
+        images: [],
+        selectedIndices: new Set(),
+        title: "paper"
+    },
+    
+    ui: {
+        doiInput: document.getElementById('doiInput'),
+        extractBtn: document.getElementById('extractBtn'),
+        btnText: document.getElementById('btnText'),
+        btnSpinner: document.getElementById('btnSpinner'),
+        statusMsg: document.getElementById('statusMsg'),
+        
+        uploadLink: document.getElementById('uploadLink'),
+        pdfUploadInput: document.getElementById('pdfUploadInput'),
+        uploadArea: document.querySelector('.upload-area'),
+        
+        resultSection: document.getElementById('resultSection'),
+        imgCount: document.getElementById('imgCount'),
+        downloadAllBtn: document.getElementById('downloadAllBtn'),
+        gallery: document.getElementById('gallery')
+    },
 
-let currentImages = []; // Store images for download logic
-let selectedIndices = new Set(); // Store indices of selected images
-let paperTitle = "paper"; // default
-
-extractBtn.addEventListener('click', async () => {
-    const doi = doiInput.value.trim();
-    if (!doi) {
-        showStatus('Please enter a valid DOI.', 'error');
-        return;
-    }
-
-    setLoading(true);
-    showStatus('Connecting to Sci-Hub mirrors (this may take 10-20s)...');
-
-    // Clear previous results
-    gallery.innerHTML = '';
-    resultSection.classList.remove('visible');
-    currentImages = [];
-    selectedIndices.clear();
-    updateDownloadBtnState();
-
-    try {
-        const response = await fetch('/api/process', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ doi })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            showStatus(`Successfully extracted ${data.image_count} images!`, 'success');
-            currentImages = data.images;
-
-            // Store and clean title
-            paperTitle = data.title || "paper";
-            // Simple sanitization
-            paperTitle = paperTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            if (paperTitle.length > 50) paperTitle = paperTitle.substring(0, 50);
-
-            renderImages(data.images);
-            document.body.classList.add('has-results');
-        } else {
-            showStatus(data.detail || 'Failed to process DOI.', 'error');
+    init() {
+        // Event Listeners
+        if (this.ui.extractBtn) {
+            this.ui.extractBtn.addEventListener('click', () => this.processDoi());
+        }
+        if (this.ui.doiInput) {
+            this.ui.doiInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.processDoi();
+            });
         }
 
-    } catch (error) {
-        showStatus('Network error or server unavailable.', 'error');
-        console.error(error);
-    } finally {
-        setLoading(false);
-    }
-});
+        // Upload Events
+        if (this.ui.uploadLink && this.ui.pdfUploadInput) {
+            this.ui.uploadLink.addEventListener('click', () => this.ui.pdfUploadInput.click());
+            this.ui.pdfUploadInput.addEventListener('change', (e) => this.handleFileUpload(e));
+        }
 
-downloadAllBtn.addEventListener('click', async () => {
-    // Determine which images to download
-    const imagesToDownload = selectedIndices.size > 0
-        ? currentImages.filter((_, idx) => selectedIndices.has(idx))
-        : currentImages;
+        // Download Event
+        if (this.ui.downloadAllBtn) {
+            this.ui.downloadAllBtn.addEventListener('click', () => this.downloadImages());
+        }
+    },
 
-    if (imagesToDownload.length === 0) return;
+    // --- Core Logic ---
 
-    const zip = new JSZip();
-    const folder = zip.folder(paperTitle); // Folder name is proper title
+    async processDoi() {
+        const doi = this.ui.doiInput.value.trim();
+        if (!doi) {
+            this.showStatus('Please enter a DOI.', 'error');
+            return;
+        }
 
-    // Change button text temporarily
-    const originalHTML = downloadAllBtn.innerHTML;
-    downloadAllBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Zipping...';
-    downloadAllBtn.disabled = true;
+        this.setLoading(true);
+        this.showStatus('Running magic... (This may take 10-20s)');
+        this.resetGallery();
 
-    imagesToDownload.forEach(img => {
-        // Remove data:image/xxx;base64, prefix
-        const base64Data = img.base64.split(',')[1];
-        // Filename: title_page_X_img_Y
-        const filename = `${paperTitle}_p${img.page}_${img.index + 1}.${img.ext}`;
-        folder.file(filename, base64Data, { base64: true });
-    });
+        try {
+            const response = await fetch('/api/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ doi: doi })
+            });
 
-    try {
-        const content = await zip.generateAsync({ type: "blob" });
-        const zipName = selectedIndices.size > 0 ? `${paperTitle}_selected.zip` : `${paperTitle}_images.zip`;
-        saveAs(content, zipName);
-    } catch (e) {
-        console.error("Zip failed", e);
-        showStatus('Failed to generate ZIP file.', 'error');
-    } finally {
-        downloadAllBtn.innerHTML = originalHTML;
-        downloadAllBtn.disabled = false;
-    }
-});
+            const data = await response.json();
+            this.handleResponse(response, data);
 
-function updateDownloadBtnState() {
-    if (selectedIndices.size > 0) {
-        downloadAllBtn.innerHTML = `<i class="fa-solid fa-check"></i> Download Selected (${selectedIndices.size})`;
-    } else {
-        downloadAllBtn.innerHTML = `<i class="fa-solid fa-file-zipper"></i> Download All`;
-    }
-}
+        } catch (error) {
+            this.showStatus('Network error occurred.', 'error');
+            console.error(error);
+        } finally {
+            this.setLoading(false);
+        }
+    },
 
-function setLoading(isLoading) {
-    extractBtn.disabled = isLoading;
-    if (isLoading) {
-        btnText.style.display = 'none';
-        btnSpinner.style.display = 'block';
-    } else {
-        btnText.style.display = 'block';
-        btnSpinner.style.display = 'none';
-    }
-}
+    async handleFileUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
 
-function showStatus(msg, type = 'normal') {
-    statusMsg.textContent = msg;
-    statusMsg.className = 'status-msg ' + type;
-}
+        if (file.type !== 'application/pdf' && !file.name.endsWith('.pdf')) {
+            this.showStatus('Please select a valid PDF file.', 'error');
+            return;
+        }
 
-function renderImages(images) {
-    imgCount.textContent = images.length;
-    resultSection.classList.remove('hidden');
+        const formData = new FormData();
+        formData.append('file', file);
 
-    setTimeout(() => {
-        resultSection.classList.add('visible');
-    }, 10);
+        this.setLoading(true);
+        this.showStatus('Uploading and analyzing PDF...');
+        this.resetGallery();
 
-    images.forEach((img, idx) => { // Use idx for selection tracking
-        const card = document.createElement('div');
-        card.className = 'img-card';
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            this.handleResponse(response, data);
+        } catch (error) {
+            this.showStatus('Error uploading file.', 'error');
+            console.error(error);
+        } finally {
+            this.setLoading(false);
+            this.ui.pdfUploadInput.value = ''; // Reset input
+        }
+    },
 
-        // Checkbox Overlay
-        const checkbox = document.createElement('div');
-        checkbox.className = 'checkbox-overlay';
-        checkbox.innerHTML = '<i class="fa-solid fa-check"></i>';
-
-        checkbox.onclick = (e) => {
-            e.stopPropagation(); // Prevent card click
-            if (selectedIndices.has(idx)) {
-                selectedIndices.delete(idx);
-                checkbox.classList.remove('checked');
-                card.classList.remove('selected');
-            } else {
-                selectedIndices.add(idx);
-                checkbox.classList.add('checked');
-                card.classList.add('selected');
+    handleResponse(response, data) {
+        if (response.ok || data.status === 'manual_link') {
+            if (data.status === 'success') {
+                this.renderSuccess(data);
+            } else if (data.status === 'manual_link') {
+                this.renderManualLink(data);
             }
-            updateDownloadBtnState();
-        };
+        } else {
+            this.showStatus(data.detail || 'Failed to process.', 'error');
+        }
+    },
 
-        // Allow card click to trigger selection
-        card.onclick = () => {
-            checkbox.click();
-        };
+    renderSuccess(data) {
+        this.showStatus(`Successfully extracted ${data.image_count} images!`, 'success');
+        this.state.images = data.images;
+        
+        // Clean title
+        let safeTitle = data.title || "paper";
+        safeTitle = safeTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        this.state.title = safeTitle.substring(0, 50);
 
-        const wrapper = document.createElement('div');
-        wrapper.className = 'img-wrapper';
+        this.renderGallery(data.images);
+        
+        // UI Updates
+        this.ui.resultSection.classList.add('visible');
+        document.body.classList.add('has-results');
+        
+        // Hide upload link when results are shown (Requirement: Clean UI)
+        if(this.ui.uploadArea) this.ui.uploadArea.style.display = 'none'; 
+        
+        this.updateDownloadBtn();
+    },
 
-        const imageEl = document.createElement('img');
-        imageEl.src = img.base64;
-        imageEl.alt = `Extracted from Page ${img.page}`;
+    renderManualLink(data) {
+        this.ui.statusMsg.innerHTML = `
+            <span style="color: #ffa502">
+                <i class="fa-solid fa-triangle-exclamation"></i> Protected Paper.<br>
+                <a href="${data.pdf_url}" target="_blank" style="color: #5352ed; font-weight: bold; text-decoration: underline; margin-left: 5px;">
+                    Download PDF manually <i class="fa-solid fa-external-link-alt"></i>
+                </a>
+                <br><span style="font-size: 0.8em; color: gray;">Then upload it above to extract images.</span>
+            </span>`;
+        // Ensure upload link is visible for manual upload
+        if(this.ui.uploadArea) this.ui.uploadArea.style.display = 'block'; 
+    },
 
-        wrapper.appendChild(imageEl);
+    // --- UI Helpers ---
 
-        const info = document.createElement('div');
-        info.className = 'img-info';
+    renderGallery(images) {
+        this.ui.imgCount.textContent = images.length;
+        this.ui.gallery.innerHTML = '';
 
-        // Single Download Link
-        const dlSpan = document.createElement('span');
-        const dlLink = document.createElement('a');
-        dlLink.href = img.base64;
-        dlLink.download = `${paperTitle}_p${img.page}_${img.index + 1}.${img.ext}`;
-        dlLink.className = 'download-link';
-        dlLink.textContent = 'Save';
-        dlLink.onclick = (e) => e.stopPropagation();
+        images.forEach((img, index) => {
+            const card = document.createElement('div');
+            card.className = 'img-card';
+            
+            // Checkbox
+            const checkbox = document.createElement('div');
+            checkbox.className = 'checkbox-overlay';
+            checkbox.innerHTML = '<i class="fa-solid fa-check"></i>';
+            
+            // Wrapper
+            const wrapper = document.createElement('div');
+            wrapper.className = 'img-wrapper';
+            const imgEl = document.createElement('img');
+            imgEl.src = img.base64;
+            wrapper.appendChild(imgEl);
 
-        dlSpan.appendChild(dlLink);
+            // Info
+            const info = document.createElement('div');
+            info.className = 'img-info';
+            info.innerHTML = `<span>#${index + 1}</span> <span>${img.width}x${img.height}</span>`;
 
-        info.innerHTML = `<span>Page ${img.page}</span>`;
-        info.appendChild(dlSpan);
+            card.append(checkbox, wrapper, info);
+            this.ui.gallery.appendChild(card);
 
-        card.appendChild(checkbox);
-        card.appendChild(wrapper);
-        card.appendChild(info);
-        gallery.appendChild(card);
-    });
-}
+            // Selection Logic
+            card.addEventListener('click', () => {
+                this.toggleSelection(index, card, checkbox);
+            });
+        });
+    },
+
+    toggleSelection(index, card, checkbox) {
+        if (this.state.selectedIndices.has(index)) {
+            this.state.selectedIndices.delete(index);
+            card.classList.remove('selected');
+            checkbox.classList.remove('checked');
+        } else {
+            this.state.selectedIndices.add(index);
+            card.classList.add('selected');
+            checkbox.classList.add('checked');
+        }
+        this.updateDownloadBtn();
+    },
+
+    updateDownloadBtn() {
+        const count = this.state.selectedIndices.size;
+        this.ui.downloadAllBtn.innerHTML = count > 0 
+            ? `<i class="fa-solid fa-download"></i> Download Selected (${count})`
+            : `<i class="fa-solid fa-file-zipper"></i> Download All`;
+    },
+
+    async downloadImages() {
+        const targets = this.state.selectedIndices.size > 0
+            ? this.state.images.filter((_, i) => this.state.selectedIndices.has(i))
+            : this.state.images;
+
+        if (targets.length === 0) return;
+
+        // Single Image -> Direct Download
+        if (targets.length === 1) {
+            const link = document.createElement('a');
+            link.href = targets[0].base64;
+            // Pad index for filename
+            const idx = this.state.images.indexOf(targets[0]) + 1;
+            link.download = `${this.state.title}_${String(idx).padStart(3, '0')}.${targets[0].ext}`;
+            link.click();
+            return;
+        }
+
+        // Multiple -> Zip (using JSZip)
+        if (!window.JSZip) {
+            alert("JSZip library not loaded!"); 
+            return;
+        }
+
+        const zip = new JSZip();
+        // Create folder inside zip
+        const folder = zip.folder(this.state.title);
+
+        targets.forEach((img, i) => {
+            const idx = this.state.images.indexOf(img) + 1;
+            const filename = `${this.state.title}_${String(idx).padStart(3, '0')}.${img.ext}`;
+            const base64Data = img.base64.split(',')[1];
+            folder.file(filename, base64Data, { base64: true });
+        });
+
+        const content = await zip.generateAsync({ type: "blob" });
+        saveAs(content, `${this.state.title}_images.zip`);
+    },
+
+    setLoading(isLoading) {
+        if (this.ui.extractBtn) this.ui.extractBtn.disabled = isLoading;
+        if (this.ui.doiInput) this.ui.doiInput.disabled = isLoading;
+        
+        if (this.ui.btnText) this.ui.btnText.style.display = isLoading ? 'none' : 'block';
+        if (this.ui.btnSpinner) this.ui.btnSpinner.style.display = isLoading ? 'block' : 'none';
+        
+        if (isLoading && this.ui.statusMsg) this.ui.statusMsg.textContent = '';
+    },
+
+    showStatus(msg, type = 'normal') {
+        if (!this.ui.statusMsg) return;
+        this.ui.statusMsg.textContent = msg;
+        this.ui.statusMsg.className = `status-msg ${type}`;
+    },
+
+    resetGallery() {
+        if (this.ui.gallery) this.ui.gallery.innerHTML = '';
+        if (this.ui.resultSection) this.ui.resultSection.classList.remove('visible');
+        
+        this.state.images = [];
+        this.state.selectedIndices.clear();
+        this.updateDownloadBtn();
+        
+        // Show upload link again
+        if(this.ui.uploadArea) this.ui.uploadArea.style.display = 'block';
+    }
+};
+
+// Initialize App
+document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+});
