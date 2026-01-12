@@ -90,10 +90,6 @@ async def upload_pdf(file: UploadFile = File(...)):
 # Frontend Routes
 @app.get("/")
 async def read_index():
-    # Cache-busting hack: serve home.html instead of index.html
-    # Check if home.html exists (it was created earlier), if not fallback to index.html
-    if os.path.exists("static/home.html"):
-        return FileResponse('static/home.html')
     return FileResponse('static/index.html')
 
 app.mount("/", StaticFiles(directory="static"), name="static")
