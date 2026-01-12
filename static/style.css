@@ -57,7 +57,8 @@ body.has-results {
 /* Neumorphic Card (The Search Box) */
 .search-box {
     background: var(--bg-color);
-    padding: 3rem;
+    padding: 3rem 3rem 1.5rem 3rem;
+    /* Reduced bottom padding */
     border-radius: var(--radius-main);
     box-shadow:
         9px 9px 16px var(--shadow-dark),
