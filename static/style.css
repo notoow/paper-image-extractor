@@ -57,17 +57,16 @@ body.has-results {
 /* Neumorphic Card (The Search Box) */
 .search-box {
     background: var(--bg-color);
-    padding: 3rem 3rem 1.5rem 3rem;
-    /* Reduced bottom padding */
+    padding: 2.5rem;
+    /* Balanced Padding */
     border-radius: var(--radius-main);
     box-shadow:
         9px 9px 16px var(--shadow-dark),
         -9px -9px 16px var(--shadow-light);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    /* Reduced gap for tighter layout */
-    max-width: 600px;
+    gap: 1.2rem;
+    max-width: 650px;
     margin: 0 auto;
 }
 
@@ -148,7 +147,6 @@ button:disabled {
 /* Status Message */
 .status-msg {
     margin-top: 10px;
-    /* spacing for messages */
     min-height: 20px;
     font-size: 0.95rem;
     font-weight: 500;
@@ -162,30 +160,58 @@ button:disabled {
     color: #1dd1a1;
 }
 
-/* Upload PDF Link */
+/* Upload PDF Area - Premium Style */
 .upload-area {
-    margin-top: 0;
-    text-align: center;
-    width: 100%;
-    display: block;
+    display: flex;
+    justify-content: center;
+    margin-top: 0.5rem;
+    /* Slight breathing room */
 }
 
 #uploadLink {
     font-size: 0.9rem;
-    color: #7c8ba1;
-    /* Darker gray for visibility */
+    color: var(--text-light);
     cursor: pointer;
-    text-decoration: underline;
-    transition: all 0.2s ease;
-    padding: 5px 10px;
+    text-decoration: none;
+    /* No underline */
+    transition: all 0.3s ease;
+    padding: 0.8rem 2rem;
+    /* Comfortable click area */
+    border-radius: 30px;
+    /* Pill shape */
+
+    /* Subtle Neumorphic Outward State */
+    box-shadow:
+        3px 3px 6px var(--shadow-dark),
+        -3px -3px 6px var(--shadow-light);
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+#uploadLink::before {
+    content: '\f093';
+    /* fa-upload */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
 }
 
 #uploadLink:hover {
     color: var(--accent);
-    background: rgba(255, 255, 255, 0.5);
-    /* Subtle highlight */
-    border-radius: 5px;
+    transform: translateY(-1px);
+    box-shadow:
+        5px 5px 10px var(--shadow-dark),
+        -5px -5px 10px var(--shadow-light);
 }
+
+#uploadLink:active {
+    transform: translateY(1px);
+    box-shadow: inset 2px 2px 5px var(--shadow-dark),
+        inset -2px -2px 5px var(--shadow-light);
+}
+
 
 /* Gallery Section */
 .result-section {
