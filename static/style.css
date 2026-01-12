@@ -64,7 +64,8 @@ body.has-results {
         -9px -9px 16px var(--shadow-light);
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0.5rem;
+    /* Reduced gap for tighter layout */
     max-width: 600px;
     margin: 0 auto;
 }
@@ -145,6 +146,8 @@ button:disabled {
 
 /* Status Message */
 .status-msg {
+    margin-top: 10px;
+    /* spacing for messages */
     min-height: 20px;
     font-size: 0.95rem;
     font-weight: 500;
