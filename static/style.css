@@ -158,6 +158,29 @@ button:disabled {
     color: #1dd1a1;
 }
 
+/* Upload PDF Link */
+.upload-area {
+    margin-top: 15px;
+    text-align: center;
+    width: 100%;
+    display: block;
+}
+
+#uploadLink {
+    font-size: 0.9rem;
+    color: #7c8ba1; /* Darker gray for visibility */
+    cursor: pointer;
+    text-decoration: underline;
+    transition: all 0.2s ease;
+    padding: 5px 10px;
+}
+
+#uploadLink:hover {
+    color: var(--accent);
+    background: rgba(255, 255, 255, 0.5); /* Subtle highlight */
+    border-radius: 5px;
+}
+
 /* Gallery Section */
 .result-section {
     margin-top: 4rem;
