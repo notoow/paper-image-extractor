@@ -1,0 +1,376 @@
+:root {
+    --bg-color: #e0e5ec;
+    --text-main: #4a4a4a;
+    --text-light: #8e9aaf;
+    --accent: #6d5dfc;
+    /* Vibrant purple-blue for active states */
+    --shadow-light: #ffffff;
+    --shadow-dark: #a3b1c6;
+    --radius-main: 30px;
+    --radius-btn: 50px;
+    --font-main: 'Outfit', sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: var(--font-main);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    transition: all 0.5s ease;
+}
+
+body.has-results {
+    justify-content: flex-start;
+    padding-top: 60px;
+}
+
+/* Typography & Layout */
+.container {
+    width: 90%;
+    max-width: 900px;
+    text-align: center;
+}
+
+.header {
+    margin-bottom: 3rem;
+}
+
+.header h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--text-main);
+    text-shadow: 2px 2px 4px var(--shadow-dark), -2px -2px 4px var(--shadow-light);
+    /* Subtle text Emboss */
+    margin-bottom: 0.5rem;
+}
+
+.header p {
+    color: var(--text-light);
+    font-size: 1.1rem;
+}
+
+/* Neumorphic Card (The Search Box) */
+.search-box {
+    background: var(--bg-color);
+    padding: 3rem;
+    border-radius: var(--radius-main);
+    box-shadow:
+        9px 9px 16px var(--shadow-dark),
+        -9px -9px 16px var(--shadow-light);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* Neumorphic Input (Inset) */
+input[type="text"] {
+    flex: 1;
+    border: none;
+    background: var(--bg-color);
+    padding: 1.2rem 1.5rem;
+    border-radius: var(--radius-btn);
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--text-main);
+    outline: none;
+    box-shadow: inset 6px 6px 10px var(--shadow-dark),
+        inset -6px -6px 10px var(--shadow-light);
+    transition: all 0.3s ease;
+}
+
+input[type="text"]:focus {
+    box-shadow: inset 4px 4px 8px var(--shadow-dark),
+        inset -4px -4px 8px var(--shadow-light);
+    color: var(--accent);
+}
+
+input::placeholder {
+    color: var(--text-light);
+}
+
+/* Neumorphic Button (Convex/Extruded) */
+button {
+    border: none;
+    background-color: var(--bg-color);
+    color: var(--accent);
+    font-weight: 600;
+    padding: 1.2rem 2.5rem;
+    border-radius: var(--radius-btn);
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow:
+        6px 6px 10px var(--shadow-dark),
+        -6px -6px 10px var(--shadow-light);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 160px;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        8px 8px 14px var(--shadow-dark),
+        -8px -8px 14px var(--shadow-light);
+}
+
+button:active {
+    transform: translateY(1px);
+    box-shadow: inset 4px 4px 8px var(--shadow-dark),
+        inset -4px -4px 8px var(--shadow-light);
+    /* Pressed effect */
+}
+
+button:disabled {
+    color: var(--text-light);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Status Message */
+.status-msg {
+    min-height: 20px;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.status-msg.error {
+    color: #ff6b6b;
+}
+
+.status-msg.success {
+    color: #1dd1a1;
+}
+
+/* Gallery Section */
+.result-section {
+    margin-top: 4rem;
+    width: 100%;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.5s;
+}
+
+.result-section.visible {
+    display: block;
+    opacity: 1;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 0 1rem;
+}
+
+.result-header h2 {
+    color: var(--text-main);
+    text-shadow: 1px 1px 2px var(--shadow-light);
+    margin: 0;
+}
+
+.download-all-btn {
+    background: var(--bg-color);
+    color: var(--accent);
+    border: none;
+    border-radius: var(--radius-btn);
+    padding: 0.8rem 1.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow:
+        5px 5px 10px var(--shadow-dark),
+        -5px -5px 10px var(--shadow-light);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.download-all-btn:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        7px 7px 12px var(--shadow-dark),
+        -7px -7px 12px var(--shadow-light);
+}
+
+.download-all-btn:active {
+    transform: translateY(1px);
+    box-shadow: inset 3px 3px 6px var(--shadow-dark),
+        inset -3px -3px 6px var(--shadow-light);
+}
+
+/* Checkbox for selection */
+.img-card {
+    position: relative;
+    /* For positioning checkbox */
+}
+
+.checkbox-overlay {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    background: var(--bg-color);
+    border-radius: 50%;
+    box-shadow:
+        3px 3px 6px var(--shadow-dark),
+        -3px -3px 6px var(--shadow-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.checkbox-overlay.checked {
+    background: var(--accent);
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.checkbox-overlay i {
+    font-size: 12px;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.checkbox-overlay.checked i {
+    opacity: 1;
+}
+
+.img-card.selected {
+    box-shadow: inset 5px 5px 10px var(--shadow-dark),
+        inset -5px -5px 10px var(--shadow-light);
+    border: 1px solid var(--accent);
+}
+
+
+.gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 30px;
+}
+
+/* Neumorphic Image Card (Floating Display Card) */
+.img-card {
+    background: var(--bg-color);
+    border-radius: 20px;
+    padding: 15px;
+    box-shadow:
+        9px 9px 16px var(--shadow-dark),
+        -9px -9px 16px var(--shadow-light);
+    transition: transform 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.img-card:hover {
+    transform: translateY(-5px);
+}
+
+.img-wrapper {
+    border-radius: 15px;
+    overflow: hidden;
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Optional: Inner shadow for image container */
+    box-shadow: inset 4px 4px 8px var(--shadow-dark),
+        inset -4px -4px 8px var(--shadow-light);
+    padding: 10px;
+    background: var(--bg-color);
+}
+
+.img-wrapper img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    mix-blend-mode: multiply;
+    /* Helps blend white backgrounds of images if any */
+}
+
+.img-info {
+    margin-top: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    padding: 0 5px;
+}
+
+.download-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 700;
+    position: relative;
+}
+
+/* Raised Icon effect for spinners or small elements */
+.spinner {
+    border: 3px solid rgba(109, 93, 252, 0.2);
+    border-top: 3px solid var(--accent);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    display: none;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responseiveness */
+@media (max-width: 600px) {
+    .header h1 {
+        font-size: 2rem;
+    }
+
+    .search-box {
+        padding: 2rem 1.5rem;
+        width: auto;
+    }
+
+    .input-group {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    button {
+        width: 100%;
+    }
+}
