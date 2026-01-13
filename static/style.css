@@ -304,15 +304,102 @@ button:disabled {
     white-space: nowrap;
 }
 
-/* --- Neumorphic Toggle Switch --- */
+/* --- Filter Controls (Toggle + Slider) --- */
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-top: 5px;
+}
+
+/* Toggle Styles (Existing adjusted) */
 .filter-toggle-wrapper {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     cursor: pointer;
     user-select: none;
-    margin-top: 5px;
 }
+
+/* ... (Keep existing toggle track/thumb styles) ... */
+
+/* Slider Styles */
+.slider-wrapper {
+    display: flex;
+    align-items: center;
+    position: relative;
+    opacity: 0.5;
+    /* Default Disabled look */
+    pointer-events: none;
+    transition: all 0.3s ease;
+}
+
+.filter-toggle-wrapper.active~.slider-wrapper {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+input[type=range] {
+    -webkit-appearance: none;
+    width: 120px;
+    background: transparent;
+}
+
+/* Slider Track (Inset) */
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 12px;
+    cursor: pointer;
+    background: var(--bg-color);
+    border-radius: 10px;
+    box-shadow: inset 2px 2px 5px var(--shadow-dark),
+        inset -2px -2px 5px var(--shadow-light);
+}
+
+/* Slider Thumb (Popping Out) */
+input[type=range]::-webkit-slider-thumb {
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: #e0e5ec;
+    cursor: pointer;
+    -webkit-appearance: none;
+    margin-top: -4px;
+    /* Center on track */
+    box-shadow: 2px 2px 4px var(--shadow-dark),
+        -2px -2px 4px var(--shadow-light);
+    transition: background 0.2s;
+}
+
+input[type=range]:hover::-webkit-slider-thumb {
+    background: #f0f3f7;
+}
+
+input[type=range]:active::-webkit-slider-thumb {
+    background: var(--accent);
+}
+
+/* Tooltip for value */
+.slider-tooltip {
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: var(--text-light);
+    background: var(--bg-color);
+    padding: 2px 6px;
+    border-radius: 5px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.slider-wrapper:hover .slider-tooltip {
+    opacity: 1;
+}
+
 
 .toggle-track {
     width: 52px;

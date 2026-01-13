@@ -59,12 +59,20 @@
                 <div class="header-left">
                     <h2>Extracted Content (<span id="imgCount">0</span>)</h2>
 
-                    <!-- Neumorphic Toggle for Small Images -->
-                    <div class="filter-toggle-wrapper" id="filterToggle" title="Hide small images (<50KB)">
-                        <div class="toggle-track">
-                            <div class="toggle-thumb"></div>
+                    <!-- Neumorphic Toggle -->
+                    <div class="filter-controls">
+                        <div class="filter-toggle-wrapper" id="filterToggle" title="Toggle Small Image Filter">
+                            <div class="toggle-track">
+                                <div class="toggle-thumb"></div>
+                            </div>
+                            <span class="toggle-label">Hide Small</span>
                         </div>
-                        <span class="toggle-label">Hide Small Imgs</span>
+
+                        <!-- Neumorphic Slider (Visible when Toggle is ON) -->
+                        <div class="slider-wrapper" id="sliderWrapper">
+                            <input type="range" id="sizeSlider" min="1000" max="100000" step="1000" value="20000">
+                            <div class="slider-tooltip" id="sliderTooltip">20k px²</div>
+                        </div>
                     </div>
                 </div>
 
