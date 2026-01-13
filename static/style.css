@@ -68,6 +68,16 @@ body.has-results {
     gap: 1.2rem;
     max-width: 650px;
     margin: 0 auto;
+    transition: all 0.3s ease;
+    /* Smooth transition for drag effect */
+}
+
+/* Drag & Drop Visual Feedback */
+.search-box.drag-over {
+    border: 2px dashed var(--accent);
+    background: rgba(109, 93, 252, 0.05);
+    /* Very light accent tint */
+    transform: scale(1.02);
 }
 
 .input-group {
