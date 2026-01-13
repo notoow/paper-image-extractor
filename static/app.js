@@ -5,7 +5,8 @@ const App = {
         selectedIndices: new Set(),
         title: "paper",
         filterSmall: true,
-        filterThreshold: 20 // Default: Hide bottom 20%
+        filterThreshold: 20, // Default: Hide bottom 20%
+        sortMode: 'original' // 'original', 'asc', 'desc'
     },
 
     ui: {
@@ -27,7 +28,9 @@ const App = {
 
         filterToggle: document.getElementById('filterToggle'),
         sizeSlider: document.getElementById('sizeSlider'),
-        sliderTooltip: document.getElementById('sliderTooltip')
+        sliderTooltip: document.getElementById('sliderTooltip'),
+
+        sortBtn: document.getElementById('sortBtn')
     },
 
     init() {
@@ -65,6 +68,34 @@ const App = {
             this.ui.filterToggle.addEventListener('click', () => {
                 this.state.filterSmall = !this.state.filterSmall;
                 this.ui.filterToggle.classList.toggle('active', this.state.filterSmall);
+                // Re-render
+                this.renderGallery(this.state.images);
+            });
+        }
+
+        // Sort Button
+        if (this.ui.sortBtn) {
+            this.ui.sortBtn.addEventListener('click', () => {
+                const modes = ['original', 'asc', 'desc'];
+                const icons = {
+                    'original': '<i class="fa-solid fa-arrow-down-1-9"></i>',
+                    'asc': '<i class="fa-solid fa-arrow-up-wide-short"></i>', // Small to Large (technically 'up' increases) - let's use 'arrow-up-short-wide'
+                    'desc': '<i class="fa-solid fa-arrow-down-wide-short"></i>' // Large to Small
+                };
+
+                // Cycle Mode
+                const currentIdx = modes.indexOf(this.state.sortMode);
+                this.state.sortMode = modes[(currentIdx + 1) % modes.length];
+
+                // Update Icon & Title
+                const iconClass = {
+                    'original': 'fa-arrow-down-1-9',
+                    'asc': 'fa-arrow-up-short-wide',  // Small -> Large
+                    'desc': 'fa-arrow-down-wide-short' // Large -> Small
+                };
+
+                this.ui.sortBtn.innerHTML = `<i class="fa-solid ${iconClass[this.state.sortMode]}"></i>`;
+
                 // Re-render
                 this.renderGallery(this.state.images);
             });
