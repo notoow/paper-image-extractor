@@ -3,10 +3,12 @@ const App = {
     state: {
         images: [], // All images (Raw Data)
         selectedIndices: new Set(),
+        deletedIndices: new Set(), // Track deleted images
         title: "paper",
         filterSmall: true,
         filterThreshold: 20, // Default: Hide bottom 20%
-        sortMode: 'original' // 'original', 'asc', 'desc'
+        sortMode: 'original',
+        debounceTimer: null
     },
 
     ui: {
@@ -30,92 +32,59 @@ const App = {
         sizeSlider: document.getElementById('sizeSlider'),
         sliderTooltip: document.getElementById('sliderTooltip'),
 
-        sortBtn: document.getElementById('sortBtn')
+        sortBtn: document.getElementById('sortBtn'),
+        trashBtn: document.getElementById('trashBtn') // New Button
     },
 
     init() {
-        // Event Listeners
-        if (this.ui.extractBtn) {
-            this.ui.extractBtn.addEventListener('click', () => this.processDoi());
-        }
-        if (this.ui.doiInput) {
-            this.ui.doiInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') this.processDoi();
-            });
-        }
-
-        // Upload Events
+        // ... (Listeners same as before) ...
+        if (this.ui.extractBtn) this.ui.extractBtn.addEventListener('click', () => this.processDoi());
+        if (this.ui.doiInput) this.ui.doiInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') this.processDoi(); });
         if (this.ui.uploadLink && this.ui.pdfUploadInput) {
             this.ui.uploadLink.addEventListener('click', () => this.ui.pdfUploadInput.click());
             this.ui.pdfUploadInput.addEventListener('change', (e) => this.handleFileUpload(e));
         }
-
-        // Drag & Drop
         this.setupDragAndDrop();
 
-        // Download Event
-        if (this.ui.downloadAllBtn) {
-            this.ui.downloadAllBtn.addEventListener('click', () => this.downloadImages());
+        if (this.ui.downloadAllBtn) this.ui.downloadAllBtn.addEventListener('click', () => this.downloadImages());
+
+        // Trash Button Logic
+        if (this.ui.trashBtn) {
+            this.ui.trashBtn.addEventListener('click', () => this.deleteSelectedImages());
         }
 
-        // Filter Toggle Event
         if (this.ui.filterToggle) {
-            if (this.state.filterSmall) {
-                this.ui.filterToggle.classList.add('active');
-            }
-
+            if (this.state.filterSmall) this.ui.filterToggle.classList.add('active');
             this.ui.filterToggle.addEventListener('click', () => {
                 this.state.filterSmall = !this.state.filterSmall;
                 this.ui.filterToggle.classList.toggle('active', this.state.filterSmall);
-
-                // Toggle -> Just re-apply visibility logic, no re-render
                 this.applyVisibilityFilter();
             });
         }
 
-        // Slider Event (Real-time, High Performance)
         if (this.ui.sizeSlider) {
             this.ui.sizeSlider.addEventListener('input', (e) => {
                 const percent = parseInt(e.target.value);
                 this.state.filterThreshold = percent;
-
-                // 1. Tooltip Update
-                if (this.ui.sliderTooltip) {
-                    this.ui.sliderTooltip.textContent = percent === 0 ? "Show All" : `Hide Bottom ${percent}%`;
-                }
-
-                // 2. Direct DOM Visibility Update (No re-render!)
-                if (this.state.filterSmall) {
-                    this.applyVisibilityFilter();
-                }
+                if (this.ui.sliderTooltip) this.ui.sliderTooltip.textContent = percent === 0 ? "Show All" : `Hide Bottom ${percent}%`;
+                if (this.state.filterSmall) this.applyVisibilityFilter();
             });
         }
 
-        // Sort Button
         if (this.ui.sortBtn) {
             this.ui.sortBtn.addEventListener('click', () => {
                 const modes = ['original', 'asc', 'desc'];
-                const icons = {
-                    'original': 'fa-arrow-down-1-9',
-                    'asc': 'fa-arrow-up-short-wide',
-                    'desc': 'fa-arrow-down-wide-short'
-                };
-
-                // Cycle Mode
+                const icons = { 'original': 'fa-arrow-down-1-9', 'asc': 'fa-arrow-up-short-wide', 'desc': 'fa-arrow-down-wide-short' };
                 const currentIdx = modes.indexOf(this.state.sortMode);
                 this.state.sortMode = modes[(currentIdx + 1) % modes.length];
-
-                // Update Icon
                 this.ui.sortBtn.innerHTML = `<i class="fa-solid ${icons[this.state.sortMode]}"></i>`;
-
-                // Sort requires re-ordering DOM, so we re-render
                 this.renderGallery(this.state.images);
             });
         }
     },
 
-    // ... (Drag & Drop, network logic same as before) ...
-    setupDragAndDrop() {
+    // ... (Network Setup Same) ...
+    setupDragAndDrop() { /* ... same ... */
         const dropZone = this.ui.searchBox;
         if (!dropZone) return;
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -143,18 +112,14 @@ const App = {
     },
 
     async processDoi() {
-        // ... (Same network logic)
+        // ... (Same)
         const doi = this.ui.doiInput.value.trim();
         if (!doi) { this.showStatus('Please enter a DOI.', 'error'); return; }
         this.setLoading(true);
         this.showStatus('');
         this.resetGallery();
         try {
-            const response = await fetch('/api/process', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ doi: doi })
-            });
+            const response = await fetch('/api/process', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doi: doi }) });
             const data = await response.json();
             this.handleResponse(response, data);
         } catch (error) {
@@ -164,8 +129,7 @@ const App = {
         }
     },
 
-    async handleFileUpload(e) {
-        // ... (Same upload logic)
+    async handleFileUpload(e) { /* ... (Same) */
         const file = e.target.files[0];
         if (!file) return;
         const formData = new FormData();
@@ -186,87 +150,88 @@ const App = {
     },
 
     handleResponse(response, data) {
-        if (response.ok && data.status === 'success') {
-            this.renderSuccess(data);
-        } else if (data && data.status === 'manual_link') {
-            this.renderManualLink(data);
-        } else {
-            const errorMsg = data.detail || 'Cloudflare blocked or PDF not found.';
-            this.showErrorWithRescueLink(errorMsg);
-        }
+        if (response.ok && data.status === 'success') { this.renderSuccess(data); }
+        else if (data && data.status === 'manual_link') { this.renderManualLink(data); }
+        else { this.showErrorWithRescueLink(data.detail || 'Error'); }
     },
 
-    showErrorWithRescueLink(msg) {
-        // ... (Previous implementation)
+    showErrorWithRescueLink(msg) { /* ... same ... */
         const doi = this.ui.doiInput.value.trim();
         this.ui.statusMsg.className = '';
         let html = `<div class="rescue-box"><span class="rescue-text"><i class="fa-solid fa-triangle-exclamation"></i> ${msg}</span>`;
-        if (doi) {
-            html += `<a href="https://doi.org/${doi}" target="_blank" class="rescue-link-btn"><i class="fa-solid fa-external-link-alt"></i> Open Publisher Site</a><span class="rescue-hint">Download PDF there and drag it here!</span>`;
-        }
+        if (doi) html += `<a href="https://doi.org/${doi}" target="_blank" class="rescue-link-btn"><i class="fa-solid fa-external-link-alt"></i> Open Publisher Site</a><span class="rescue-hint">Download PDF there and drag it here!</span>`;
         html += `</div>`;
         this.ui.statusMsg.innerHTML = html;
         if (this.ui.uploadArea) this.ui.uploadArea.style.display = 'block';
     },
-
     renderManualLink(data) { this.showErrorWithRescueLink("Protected Paper. Please download manually."); },
 
     renderSuccess(data) {
         this.showStatus(`Successfully extracted ${data.image_count} images!`, 'success');
-        this.state.images = data.images; // Store Raw Data
-
+        this.state.images = data.images;
         let safeTitle = data.title || "paper";
         safeTitle = safeTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         this.state.title = safeTitle.substring(0, 50);
-
-        // Initial Render
         this.renderGallery(data.images);
-
         this.ui.resultSection.classList.add('visible');
         document.body.classList.add('has-results');
         if (this.ui.uploadArea) this.ui.uploadArea.style.display = 'none';
         const actionBtns = document.querySelector('.action-buttons');
         if (actionBtns) actionBtns.style.display = 'none';
-
         this.updateDownloadBtn();
     },
 
-    // --- High Performance Rendering & Filtering ---
+    // --- Smart Interaction Logic ---
 
-    // 1. Render All Cards (Sorted) - Only called on Init or Sort Change
     renderGallery(allImages) {
         this.ui.gallery.innerHTML = '';
         this.state.selectedIndices.clear();
 
-        // Prepare sorted list for display order
+        // Sort Logic
         let displayImages = [...allImages];
         if (this.state.sortMode === 'asc') {
             displayImages.sort((a, b) => (a.width * a.height) - (b.width * b.height));
         } else if (this.state.sortMode === 'desc') {
             displayImages.sort((a, b) => (b.width * b.height) - (a.width * a.height));
         }
-        // 'original' uses original order
 
         displayImages.forEach((img) => {
             const originalIndex = this.state.images.indexOf(img);
-            const area = img.width * img.height;
+            // Skip deleted images permanently from render? Or hide them?
+            // "슬라이더 아무리 움직여도 삭제 된 건 보이지 않도록" -> Don't render or always hide.
+            // Let's rely on applyVisibilityFilter to hide, but cleaner to not render?
+            // If we don't render, we break Sort/Index map? No, originalIndex is absolute.
+            // But Zero-Repaint expects DOM nodes to exist? 
+            // Better: Render it, but mark it deleted class, and applyVisibilityFilter handles it.
 
+            const area = img.width * img.height;
             const card = document.createElement('div');
             card.className = 'img-card';
-            // Store area for fast filtering
+            if (this.state.deletedIndices.has(originalIndex)) {
+                card.classList.add('deleted'); // Will be hidden by CSS/JS
+            }
             card.dataset.area = area;
-            card.dataset.index = originalIndex; // Store ID
+            card.dataset.index = originalIndex;
 
             const checkbox = document.createElement('div');
             checkbox.className = 'checkbox-overlay';
             checkbox.innerHTML = '<i class="fa-solid fa-check"></i>';
+            // Click on checkbox -> Always toggle selection
+            checkbox.addEventListener('click', (e) => {
+                e.stopPropagation(); // Stop bubbling to card
+                this.toggleSelection(originalIndex, card, checkbox);
+            });
 
             const wrapper = document.createElement('div');
             wrapper.className = 'img-wrapper';
             const imgEl = document.createElement('img');
             imgEl.src = img.base64;
-            // Lazy load can be added here if needed, but base64 is already in memory
             wrapper.appendChild(imgEl);
+            // Click on Image -> Smart Action
+            wrapper.addEventListener('click', (e) => {
+                e.stopPropagation(); // Stop bubbling
+                this.handleSmartClick(originalIndex, card, checkbox);
+            });
 
             const info = document.createElement('div');
             info.className = 'img-info';
@@ -275,50 +240,27 @@ const App = {
             card.append(checkbox, wrapper, info);
             this.ui.gallery.appendChild(card);
 
-            card.addEventListener('click', () => {
+            // Click on Card Body (border/padding) -> Always Selection
+            card.addEventListener('click', (e) => {
+                // If clicked on padding/border (not wrapper/checkbox)
                 this.toggleSelection(originalIndex, card, checkbox);
             });
         });
 
-        // Apply initial filter visibility
-        this.applyVisibilityFilter();
+        this.applyVisibilityFilter(); // Initial Hide
     },
 
-    // 2. Fast Visibility Toggle (No Re-render)
-    applyVisibilityFilter() {
-        if (!this.state.images.length) return;
+    handleSmartClick(index, card, checkbox) {
+        // Mode Logic
+        const isSelectMode = this.state.selectedIndices.size > 0;
 
-        let cutoffArea = 0;
-
-        // Calculate Cutoff (Semantic Percentile)
-        if (this.state.filterSmall && this.state.filterThreshold > 0) {
-            // Need sorted areas to find percentile
-            // Sort only areas array (fast numeric sort)
-            const areas = this.state.images.map(img => img.width * img.height).sort((a, b) => a - b);
-            const cutoffIndex = Math.floor(areas.length * (this.state.filterThreshold / 100));
-            cutoffArea = areas[cutoffIndex] || 0;
+        if (isSelectMode) {
+            // Select Mode -> Toggle Selection
+            this.toggleSelection(index, card, checkbox);
+        } else {
+            // Idle Mode -> Direct Download
+            this.downloadSingleImage(index);
         }
-
-        // Apply to DOM
-        const cards = this.ui.gallery.children;
-        let visibleCount = 0;
-
-        for (let card of cards) {
-            const area = parseInt(card.dataset.area);
-            // Show if area >= cutoff
-            // If toggle is OFF, show everything (cutoff 0 handles this mostly, but safety check)
-            const isVisible = (!this.state.filterSmall) || (area >= cutoffArea);
-
-            if (isVisible) {
-                card.style.display = ''; // Reset to default (flex/block)
-                visibleCount++;
-            } else {
-                card.style.display = 'none';
-            }
-        }
-
-        this.ui.imgCount.textContent = visibleCount;
-        this.updateDownloadBtn();
     },
 
     toggleSelection(index, card, checkbox) {
@@ -334,33 +276,108 @@ const App = {
         this.updateDownloadBtn();
     },
 
+    deleteSelectedImages() {
+        if (this.state.selectedIndices.size === 0) return;
+
+        // Mark selected as deleted
+        this.state.selectedIndices.forEach(idx => {
+            this.state.deletedIndices.add(idx);
+        });
+
+        // Clear selection
+        this.state.selectedIndices.clear();
+        this.updateDownloadBtn();
+
+        // Re-apply visibility (Will hide deleted)
+        this.applyVisibilityFilter();
+
+        // Find cards and remove 'selected' class just in case re-render didn't happen
+        const cards = this.ui.gallery.children;
+        for (let card of cards) {
+            const idx = parseInt(card.dataset.index);
+            if (this.state.deletedIndices.has(idx)) {
+                card.classList.remove('selected');
+                card.querySelector('.checkbox-overlay').classList.remove('checked');
+            }
+        }
+    },
+
+    applyVisibilityFilter() {
+        if (!this.state.images.length) return;
+
+        let cutoffArea = 0;
+        if (this.state.filterSmall && this.state.filterThreshold > 0) {
+            const areas = this.state.images.map(img => img.width * img.height).sort((a, b) => a - b);
+            const cutoffIndex = Math.floor(areas.length * (this.state.filterThreshold / 100));
+            cutoffArea = areas[cutoffIndex] || 0;
+        }
+
+        const cards = this.ui.gallery.children;
+        let visibleCount = 0;
+
+        for (let card of cards) {
+            const idx = parseInt(card.dataset.index);
+
+            // 1. Check Deleted
+            if (this.state.deletedIndices.has(idx)) {
+                card.style.display = 'none';
+                continue; // Skip
+            }
+
+            // 2. Check Size Filter
+            const area = parseInt(card.dataset.area);
+            const isVisible = (!this.state.filterSmall) || (area >= cutoffArea);
+
+            if (isVisible) {
+                card.style.display = '';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        }
+        this.ui.imgCount.textContent = visibleCount;
+    },
+
     updateDownloadBtn() {
         // ... (Same)
         const count = this.state.selectedIndices.size;
         this.ui.downloadAllBtn.innerHTML = count > 0
             ? `<i class="fa-solid fa-download"></i> Download Selected (${count})`
             : `<i class="fa-solid fa-file-zipper"></i> Download All`;
+
+        // Toggle Trash Button Visibility? No, keep it disabled/dimmed?
+        if (this.ui.trashBtn) {
+            this.ui.trashBtn.style.opacity = count > 0 ? '1' : '0.5';
+            this.ui.trashBtn.style.pointerEvents = count > 0 ? 'auto' : 'none';
+        }
+    },
+
+    downloadSingleImage(index) {
+        const target = this.state.images[index];
+        const link = document.createElement('a');
+        link.href = target.base64;
+        const fnIdx = index + 1;
+        link.download = `${this.state.title}_${String(fnIdx).padStart(3, '0')}.${target.ext}`;
+        link.click();
     },
 
     async downloadImages() {
-        // Logic needs to adapt to visibility state if no selection
+        // ... (Same)
         let targets = [];
-
         if (this.state.selectedIndices.size > 0) {
             targets = this.state.images.filter((_, i) => this.state.selectedIndices.has(i));
         } else {
-            // Download Visible Cards
-            // We can re-calculate visible headers or query DOM
-            // Querying DOM respects current Sort AND Filter
+            // Visible only (Exclude deleted & filtered)
+            // We can use deletedIndices Set to filter
             const visibleCards = Array.from(this.ui.gallery.children).filter(c => c.style.display !== 'none');
             const visibleIndices = visibleCards.map(c => parseInt(c.dataset.index));
-            // Map indices back to images (to preserve data integrity)
             targets = visibleIndices.map(idx => this.state.images[idx]);
         }
 
         if (targets.length === 0) return;
 
         if (targets.length === 1) {
+            // Reuse single download logic but adapt for target object
             const target = targets[0];
             const link = document.createElement('a');
             link.href = target.base64;
@@ -386,32 +403,24 @@ const App = {
         saveAs(content, `${this.state.title}_images.zip`);
     },
 
-    setLoading(isLoading) {
+    // ... (rest same: resetGallery etc) ...
+    setLoading(isLoading) { /* ... */
         if (this.ui.extractBtn) this.ui.extractBtn.disabled = isLoading;
         if (this.ui.doiInput) this.ui.doiInput.disabled = isLoading;
         if (this.ui.btnText) this.ui.btnText.style.display = isLoading ? 'none' : 'block';
         if (this.ui.btnSpinner) this.ui.btnSpinner.style.display = isLoading ? 'flex' : 'none';
-        if (isLoading && this.ui.statusMsg) {
-            this.ui.statusMsg.innerHTML = '';
-            this.ui.statusMsg.className = 'status-msg';
-        }
+        if (isLoading && this.ui.statusMsg) { this.ui.statusMsg.innerHTML = ''; this.ui.statusMsg.className = 'status-msg'; }
     },
-
-    showStatus(msg, type = 'normal') {
-        if (!this.ui.statusMsg) return;
-        this.ui.statusMsg.textContent = msg;
-        this.ui.statusMsg.className = `status-msg ${type}`;
-    },
-
+    showStatus(msg, type = 'normal') { if (!this.ui.statusMsg) return; this.ui.statusMsg.textContent = msg; this.ui.statusMsg.className = `status-msg ${type}`; },
     resetGallery() {
         if (this.ui.gallery) this.ui.gallery.innerHTML = '';
         if (this.ui.resultSection) this.ui.resultSection.classList.remove('visible');
         this.state.images = [];
         this.state.selectedIndices.clear();
+        this.state.deletedIndices.clear(); // Reset deleted
         this.updateDownloadBtn();
         const actionBtns = document.querySelector('.action-buttons');
         if (actionBtns) actionBtns.style.display = 'flex';
     }
 };
-
 document.addEventListener('DOMContentLoaded', () => App.init());

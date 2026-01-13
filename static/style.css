@@ -613,11 +613,26 @@ input[type=range]:active::-webkit-slider-thumb {
     padding: 0 5px;
 }
 
-.download-link {
-    color: var(--accent);
-    text-decoration: none;
-    font-weight: 700;
-    position: relative;
+/* Trash Button */
+.trash-btn {
+    color: var(--text-light);
+    margin-left: 5px;
+    /* Slight separation */
+}
+
+.trash-btn:hover {
+    color: #ff4757;
+    /* Red Warning Color */
+    transform: translateY(-2px);
+    box-shadow:
+        7px 7px 12px var(--shadow-dark),
+        -7px -7px 12px var(--shadow-light);
+}
+
+.trash-btn:active {
+    transform: translateY(1px);
+    box-shadow: inset 3px 3px 6px var(--shadow-dark),
+        inset -3px -3px 6px var(--shadow-light);
 }
 
 /* Neumorphic Loader */
