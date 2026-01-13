@@ -33,7 +33,7 @@ const App = {
         sliderTooltip: document.getElementById('sliderTooltip'),
 
         sortBtn: document.getElementById('sortBtn'),
-        trashBtn: document.getElementById('trashBtn') // New Button
+        trashBtn: document.getElementById('trashBtn')
     },
 
     init() {
@@ -67,7 +67,11 @@ const App = {
                 const percent = parseInt(e.target.value);
                 this.state.filterThreshold = percent;
                 if (this.ui.sliderTooltip) this.ui.sliderTooltip.textContent = percent === 0 ? "Show All" : `Hide Bottom ${percent}%`;
-                if (this.state.filterSmall) this.applyVisibilityFilter();
+                // Debounce Logic
+                if (this.state.debounceTimer) clearTimeout(this.state.debounceTimer);
+                if (this.state.filterSmall) {
+                    this.state.debounceTimer = setTimeout(() => this.applyVisibilityFilter(), 20); // Fast Visual Update
+                }
             });
         }
 
@@ -84,7 +88,7 @@ const App = {
     },
 
     // ... (Network Setup Same) ...
-    setupDragAndDrop() { /* ... same ... */
+    setupDragAndDrop() {
         const dropZone = this.ui.searchBox;
         if (!dropZone) return;
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -112,7 +116,6 @@ const App = {
     },
 
     async processDoi() {
-        // ... (Same)
         const doi = this.ui.doiInput.value.trim();
         if (!doi) { this.showStatus('Please enter a DOI.', 'error'); return; }
         this.setLoading(true);
@@ -129,7 +132,7 @@ const App = {
         }
     },
 
-    async handleFileUpload(e) { /* ... (Same) */
+    async handleFileUpload(e) {
         const file = e.target.files[0];
         if (!file) return;
         const formData = new FormData();
@@ -155,7 +158,7 @@ const App = {
         else { this.showErrorWithRescueLink(data.detail || 'Error'); }
     },
 
-    showErrorWithRescueLink(msg) { /* ... same ... */
+    showErrorWithRescueLink(msg) {
         const doi = this.ui.doiInput.value.trim();
         this.ui.statusMsg.className = '';
         let html = `<div class="rescue-box"><span class="rescue-text"><i class="fa-solid fa-triangle-exclamation"></i> ${msg}</span>`;
@@ -197,28 +200,22 @@ const App = {
 
         displayImages.forEach((img) => {
             const originalIndex = this.state.images.indexOf(img);
-            // Skip deleted images permanently from render? Or hide them?
-            // "슬라이더 아무리 움직여도 삭제 된 건 보이지 않도록" -> Don't render or always hide.
-            // Let's rely on applyVisibilityFilter to hide, but cleaner to not render?
-            // If we don't render, we break Sort/Index map? No, originalIndex is absolute.
-            // But Zero-Repaint expects DOM nodes to exist? 
-            // Better: Render it, but mark it deleted class, and applyVisibilityFilter handles it.
+            if (this.state.deletedIndices.has(originalIndex)) return; // Don't render if deleted (or render hidden, but safer to skip)
+
+            // Re-think: If we skip render, we break array mapping if we rely on loop index?
+            // No, we rely on `originalIndex` stored in dataset. So skipping is safe and better.
 
             const area = img.width * img.height;
             const card = document.createElement('div');
             card.className = 'img-card';
-            if (this.state.deletedIndices.has(originalIndex)) {
-                card.classList.add('deleted'); // Will be hidden by CSS/JS
-            }
             card.dataset.area = area;
             card.dataset.index = originalIndex;
 
             const checkbox = document.createElement('div');
             checkbox.className = 'checkbox-overlay';
             checkbox.innerHTML = '<i class="fa-solid fa-check"></i>';
-            // Click on checkbox -> Always toggle selection
             checkbox.addEventListener('click', (e) => {
-                e.stopPropagation(); // Stop bubbling to card
+                e.stopPropagation();
                 this.toggleSelection(originalIndex, card, checkbox);
             });
 
@@ -227,9 +224,8 @@ const App = {
             const imgEl = document.createElement('img');
             imgEl.src = img.base64;
             wrapper.appendChild(imgEl);
-            // Click on Image -> Smart Action
             wrapper.addEventListener('click', (e) => {
-                e.stopPropagation(); // Stop bubbling
+                e.stopPropagation();
                 this.handleSmartClick(originalIndex, card, checkbox);
             });
 
@@ -240,9 +236,7 @@ const App = {
             card.append(checkbox, wrapper, info);
             this.ui.gallery.appendChild(card);
 
-            // Click on Card Body (border/padding) -> Always Selection
             card.addEventListener('click', (e) => {
-                // If clicked on padding/border (not wrapper/checkbox)
                 this.toggleSelection(originalIndex, card, checkbox);
             });
         });
@@ -251,14 +245,10 @@ const App = {
     },
 
     handleSmartClick(index, card, checkbox) {
-        // Mode Logic
         const isSelectMode = this.state.selectedIndices.size > 0;
-
         if (isSelectMode) {
-            // Select Mode -> Toggle Selection
             this.toggleSelection(index, card, checkbox);
         } else {
-            // Idle Mode -> Direct Download
             this.downloadSingleImage(index);
         }
     },
@@ -279,27 +269,32 @@ const App = {
     deleteSelectedImages() {
         if (this.state.selectedIndices.size === 0) return;
 
-        // Mark selected as deleted
-        this.state.selectedIndices.forEach(idx => {
-            this.state.deletedIndices.add(idx);
-        });
+        const indicesToDelete = Array.from(this.state.selectedIndices);
 
-        // Clear selection
-        this.state.selectedIndices.clear();
-        this.updateDownloadBtn();
-
-        // Re-apply visibility (Will hide deleted)
-        this.applyVisibilityFilter();
-
-        // Find cards and remove 'selected' class just in case re-render didn't happen
+        // 1. Visual Feedback: Apple-style "Shrink & Disappear"
         const cards = this.ui.gallery.children;
         for (let card of cards) {
             const idx = parseInt(card.dataset.index);
-            if (this.state.deletedIndices.has(idx)) {
-                card.classList.remove('selected');
-                card.querySelector('.checkbox-overlay').classList.remove('checked');
+            if (this.state.selectedIndices.has(idx)) {
+                card.classList.add('deleting'); // Triggers CSS scale/opacity transition
+                card.classList.remove('selected'); // Remove selection border immediately
             }
         }
+
+        // 2. Wait for animation to finish (400ms), then logically remove
+        setTimeout(() => {
+            indicesToDelete.forEach(idx => this.state.deletedIndices.add(idx));
+            this.state.selectedIndices.clear();
+            this.updateDownloadBtn();
+
+            // Effectively hide them from layout (using visibility filter logic)
+            this.applyVisibilityFilter();
+
+            // Clean up class just in case they are re-shown (unlikely)
+            for (let card of cards) {
+                if (card.classList.contains('deleting')) card.classList.remove('deleting');
+            }
+        }, 400);
     },
 
     applyVisibilityFilter() {
@@ -321,7 +316,7 @@ const App = {
             // 1. Check Deleted
             if (this.state.deletedIndices.has(idx)) {
                 card.style.display = 'none';
-                continue; // Skip
+                continue;
             }
 
             // 2. Check Size Filter
@@ -339,13 +334,11 @@ const App = {
     },
 
     updateDownloadBtn() {
-        // ... (Same)
         const count = this.state.selectedIndices.size;
         this.ui.downloadAllBtn.innerHTML = count > 0
             ? `<i class="fa-solid fa-download"></i> Download Selected (${count})`
             : `<i class="fa-solid fa-file-zipper"></i> Download All`;
 
-        // Toggle Trash Button Visibility? No, keep it disabled/dimmed?
         if (this.ui.trashBtn) {
             this.ui.trashBtn.style.opacity = count > 0 ? '1' : '0.5';
             this.ui.trashBtn.style.pointerEvents = count > 0 ? 'auto' : 'none';
@@ -362,13 +355,11 @@ const App = {
     },
 
     async downloadImages() {
-        // ... (Same)
         let targets = [];
         if (this.state.selectedIndices.size > 0) {
             targets = this.state.images.filter((_, i) => this.state.selectedIndices.has(i));
         } else {
             // Visible only (Exclude deleted & filtered)
-            // We can use deletedIndices Set to filter
             const visibleCards = Array.from(this.ui.gallery.children).filter(c => c.style.display !== 'none');
             const visibleIndices = visibleCards.map(c => parseInt(c.dataset.index));
             targets = visibleIndices.map(idx => this.state.images[idx]);
@@ -377,7 +368,6 @@ const App = {
         if (targets.length === 0) return;
 
         if (targets.length === 1) {
-            // Reuse single download logic but adapt for target object
             const target = targets[0];
             const link = document.createElement('a');
             link.href = target.base64;
@@ -403,8 +393,7 @@ const App = {
         saveAs(content, `${this.state.title}_images.zip`);
     },
 
-    // ... (rest same: resetGallery etc) ...
-    setLoading(isLoading) { /* ... */
+    setLoading(isLoading) {
         if (this.ui.extractBtn) this.ui.extractBtn.disabled = isLoading;
         if (this.ui.doiInput) this.ui.doiInput.disabled = isLoading;
         if (this.ui.btnText) this.ui.btnText.style.display = isLoading ? 'none' : 'block';
@@ -417,7 +406,7 @@ const App = {
         if (this.ui.resultSection) this.ui.resultSection.classList.remove('visible');
         this.state.images = [];
         this.state.selectedIndices.clear();
-        this.state.deletedIndices.clear(); // Reset deleted
+        this.state.deletedIndices.clear();
         this.updateDownloadBtn();
         const actionBtns = document.querySelector('.action-buttons');
         if (actionBtns) actionBtns.style.display = 'flex';
