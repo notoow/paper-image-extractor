@@ -45,7 +45,6 @@ body.has-results {
     font-weight: 700;
     color: var(--text-main);
     text-shadow: 2px 2px 4px var(--shadow-dark), -2px -2px 4px var(--shadow-light);
-    /* Subtle text Emboss */
     margin-bottom: 0.5rem;
 }
 
@@ -57,26 +56,24 @@ body.has-results {
 /* Neumorphic Card (The Search Box) */
 .search-box {
     background: var(--bg-color);
-    padding: 2.5rem;
-    /* Balanced Padding */
+    padding: 3rem 3rem 1rem 3rem;
+    /* Highly optimized padding */
     border-radius: var(--radius-main);
     box-shadow:
         9px 9px 16px var(--shadow-dark),
         -9px -9px 16px var(--shadow-light);
     display: flex;
     flex-direction: column;
-    gap: 1.2rem;
+    gap: 0.8rem;
     max-width: 650px;
     margin: 0 auto;
     transition: all 0.3s ease;
-    /* Smooth transition for drag effect */
 }
 
 /* Drag & Drop Visual Feedback */
 .search-box.drag-over {
     border: 2px dashed var(--accent);
     background: rgba(109, 93, 252, 0.05);
-    /* Very light accent tint */
     transform: scale(1.02);
 }
 
@@ -144,7 +141,6 @@ button:active {
     transform: translateY(1px);
     box-shadow: inset 4px 4px 8px var(--shadow-dark),
         inset -4px -4px 8px var(--shadow-light);
-    /* Pressed effect */
 }
 
 button:disabled {
@@ -156,7 +152,7 @@ button:disabled {
 
 /* Status Message */
 .status-msg {
-    margin-top: 10px;
+    margin-top: 5px;
     min-height: 20px;
     font-size: 0.95rem;
     font-weight: 500;
@@ -170,12 +166,13 @@ button:disabled {
     color: #1dd1a1;
 }
 
-/* Upload PDF Area - Premium Style */
+/* Upload PDF Area - Premium Style (Pille Shape) */
 .upload-area {
     display: flex;
     justify-content: center;
-    margin-top: 0.5rem;
-    /* Slight breathing room */
+    margin-top: 0;
+    /* No extra margin */
+    margin-bottom: 0.5rem;
 }
 
 #uploadLink {
@@ -183,14 +180,11 @@ button:disabled {
     color: var(--text-light);
     cursor: pointer;
     text-decoration: none;
-    /* No underline */
     transition: all 0.3s ease;
-    padding: 0.8rem 2rem;
-    /* Comfortable click area */
+    padding: 0.6rem 1.5rem;
     border-radius: 30px;
-    /* Pill shape */
 
-    /* Subtle Neumorphic Outward State */
+    /* Subtle Neumorphism Outward State */
     box-shadow:
         3px 3px 6px var(--shadow-dark),
         -3px -3px 6px var(--shadow-light);
@@ -212,8 +206,8 @@ button:disabled {
     color: var(--accent);
     transform: translateY(-1px);
     box-shadow:
-        5px 5px 10px var(--shadow-dark),
-        -5px -5px 10px var(--shadow-light);
+        4px 4px 8px var(--shadow-dark),
+        -4px -4px 8px var(--shadow-light);
 }
 
 #uploadLink:active {
@@ -374,7 +368,6 @@ button:disabled {
     max-height: 100%;
     object-fit: contain;
     mix-blend-mode: multiply;
-    /* Helps blend white backgrounds of images if any */
 }
 
 .img-info {
@@ -427,67 +420,15 @@ button:disabled {
 
     .input-group {
         flex-direction: column;
-
-        button {
-            width: 100%;
-        }
-    }
-
-    /* End Media Query */
-
-    /* Footer & Coffee Button */
-    .footer {
-        margin-top: 5rem;
-        margin-bottom: 3rem;
-        display: flex;
-        justify-content: center;
         width: 100%;
     }
 
-    .coffee-btn {
-        text-decoration: none;
-        font-family: var(--font-main);
-        font-weight: 600;
-        font-size: 1rem;
-        color: var(--text-light);
-        /* Subtle default color */
-        background: var(--bg-color);
-        padding: 1rem 2rem;
-        border-radius: 50px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        transition: all 0.3s ease;
-
-        /* Neumorphism Flat State */
-        box-shadow:
-            6px 6px 10px var(--shadow-dark),
-            -6px -6px 10px var(--shadow-light);
+    input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
     }
 
-    .coffee-btn i {
-        color: #FF813F;
-        /* Buy Me a Coffee Orange brand color */
-        font-size: 1.2rem;
-        transition: transform 0.3s ease;
+    button {
+        width: 100%;
     }
-
-    .coffee-btn:hover {
-        color: var(--text-main);
-        /* Darker text on hover */
-        transform: translateY(-3px);
-        box-shadow:
-            9px 9px 18px var(--shadow-dark),
-            -9px -9px 18px var(--shadow-light);
-    }
-
-    .coffee-btn:hover i {
-        transform: scale(1.2) rotate(-10deg);
-        /* Playful icon animation */
-    }
-
-    .coffee-btn:active {
-        transform: translateY(1px);
-        box-shadow: inset 3px 3px 6px var(--shadow-dark),
-            inset -3px -3px 6px var(--shadow-light);
-    }
+}
