@@ -8,7 +8,13 @@ const App = {
         title: "paper",
         filterThreshold: 20, // Default: Hide bottom 20%
         sortMode: 'original',
-        debounceTimer: null
+        debounceTimer: null,
+        // Chat State
+        ws: null,
+        myCountry: 'UN',
+        chatOpen: false,
+        unread: 0,
+        sessionId: Math.random().toString(36).substring(7) // Temp ID
     },
 
     ui: {
@@ -76,6 +82,9 @@ const App = {
                 this.renderGallery(this.state.images);
             });
         }
+
+        // Init Chat
+        this.initChat();
     },
 
     // ... (Network & DragDrop Same)
