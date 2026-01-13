@@ -395,48 +395,48 @@ input[type=range]::-webkit-slider-runnable-track {
         inset -2px -2px 5px var(--shadow-light);
 }
 
-/* Slider Thumb (Popping Out) */
+/* Slider Thumb (Popping Out - iOS Style) */
 input[type=range]::-webkit-slider-thumb {
-    height: 20px;
-    width: 20px;
+    height: 24px;
+    width: 24px;
     border-radius: 50%;
-    background: #e0e5ec;
+    background: #ffffff;
     cursor: pointer;
     -webkit-appearance: none;
     appearance: none;
-    margin-top: -4px;
-    box-shadow: 2px 2px 4px var(--shadow-dark),
-        -2px -2px 4px var(--shadow-light);
-    transition: background 0.2s;
-}
-
-input[type=range]:hover::-webkit-slider-thumb {
-    background: #f0f3f7;
+    margin-top: -6px;
+    /* Soft premium shadow */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 input[type=range]:active::-webkit-slider-thumb {
-    background: var(--accent);
+    transform: scale(1.1);
 }
 
-/* Tooltip for value */
+/* Tooltip for value (iOS Glassmorphism) */
 .slider-tooltip {
     position: absolute;
-    top: -30px;
+    top: -40px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 0.75rem;
-    color: var(--text-light);
-    background: var(--bg-color);
-    padding: 2px 8px;
-    border-radius: 5px;
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+    font-size: 0.85rem;
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 6px 12px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     white-space: nowrap;
     opacity: 0;
     transition: opacity 0.2s;
     pointer-events: none;
+    font-weight: 600;
 }
 
-.slider-wrapper:hover .slider-tooltip {
+.slider-wrapper:hover .slider-tooltip,
+.slider-wrapper:active .slider-tooltip {
     opacity: 1;
 }
 
