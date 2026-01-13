@@ -141,7 +141,15 @@ const App = {
         }
 
         this.setLoading(true);
-        this.showStatus('Running magic... (This may take 10-20s)');
+        // Note: We don't show text 'Running magic...' anymore based on request, 
+        // setLoading handles hiding text. But showStatus might overwrite if not careful.
+        // Let's just pass empty string or rely on setLoading.
+        // Actually, let's allow showStatus to work but rely on setLoading to hide the text element of the BUTTON.
+        // But the status MSG below needs to be cleared or show something? 
+        // User requested removing "Uploading and analyzing..." text.
+        // Let's keep statusMsg clean.
+        this.showStatus('');
+
         this.resetGallery();
 
         try {
@@ -175,7 +183,7 @@ const App = {
         formData.append('file', file);
 
         this.setLoading(true);
-        this.showStatus('Uploading and analyzing PDF...');
+        this.showStatus(''); // Clear text
         this.resetGallery();
 
         try {
@@ -262,12 +270,47 @@ const App = {
     // --- UI Helpers ---
 
     renderGallery(allImages) {
-        // Filter Logic: Filter small images if Toggle is ON
-        // Criterion: Width*Height > filterThreshold
+        if (!allImages || allImages.length === 0) {
+            this.ui.imgCount.textContent = 0;
+            this.ui.gallery.innerHTML = '';
+            return;
+        }
 
-        const filteredImages = this.state.filterSmall
-            ? allImages.filter(img => (img.width * img.height) > this.state.filterThreshold)
-            : allImages;
+        let filteredImages = allImages;
+
+        // Semantic Filter Logic: Relative Percentile
+        // If Toggle is ON and Slider > 0 (meaning we want to hide some bottom %)
+        if (this.state.filterSmall && this.state.filterThreshold > 0) {
+            // 1. Calculate Area for all
+            const imagesWithArea = allImages.map(img => ({
+                ...img,
+                area: img.width * img.height
+            }));
+
+            // 2. Sort by Area Ascending to find cutoff
+            const sorted = [...imagesWithArea].sort((a, b) => a.area - b.area);
+
+            // 3. Find cutoff index based on percentage
+            // e.g. 20% -> hide bottom 20% -> index = length * 0.2
+            // Math.ceil ensures we hide at least one if percentage is small but non-zero? 
+            // Math.floor is safer to avoid index out of bounds.
+            const cutoffIndex = Math.floor(sorted.length * (this.state.filterThreshold / 100));
+
+            // Safety check
+            if (cutoffIndex < sorted.length) {
+                const cutoffArea = sorted[cutoffIndex].area;
+                // 4. Filter: Keep images LARGER (or equal? let's say larger to be strict) than the cutoff area
+                // If cutoffIndex is 0 (0%), cutoffArea is smallest.
+                // We want to hide BOTTOM X%. So if X=20%, we hide items 0 to 0.2*L.
+                // We keep items from 0.2*L to L.
+                // So we keep items with area >= sorted[cutoffIndex].area
+
+                filteredImages = allImages.filter(img => (img.width * img.height) >= cutoffArea);
+            } else {
+                // If 100%, hide all? usually yes.
+                filteredImages = [];
+            }
+        }
 
         this.ui.imgCount.textContent = filteredImages.length;
         this.ui.gallery.innerHTML = '';
@@ -337,9 +380,24 @@ const App = {
             targets = this.state.images.filter((_, i) => this.state.selectedIndices.has(i));
         } else {
             // Download all *visible* images (Filtered)
-            targets = this.state.filterSmall
-                ? this.state.images.filter(img => (img.width * img.height) > this.state.filterThreshold)
-                : this.state.images;
+            // Re-apply filter logic here to be safe or rely on render?
+            // Safer to re-apply filter logic or check against currently rendered DOM?
+            // Re-calc logic is safest SSOT.
+
+            if (this.state.filterSmall && this.state.filterThreshold > 0) {
+                const imagesWithArea = this.state.images.map(img => ({ ...img, area: img.width * img.height }));
+                const sorted = [...imagesWithArea].sort((a, b) => a.area - b.area);
+                const cutoffIndex = Math.floor(sorted.length * (this.state.filterThreshold / 100));
+
+                if (cutoffIndex < sorted.length) {
+                    const cutoffArea = sorted[cutoffIndex].area;
+                    targets = this.state.images.filter(img => (img.width * img.height) >= cutoffArea);
+                } else {
+                    targets = [];
+                }
+            } else {
+                targets = this.state.images;
+            }
         }
 
         if (targets.length === 0) return;
@@ -381,11 +439,19 @@ const App = {
         if (this.ui.doiInput) this.ui.doiInput.disabled = isLoading;
 
         if (this.ui.btnText) this.ui.btnText.style.display = isLoading ? 'none' : 'block';
-        if (this.ui.btnSpinner) this.ui.btnSpinner.style.display = isLoading ? 'block' : 'none';
+
+        // Spinner logic
+        if (this.ui.btnSpinner) {
+            if (isLoading) {
+                this.ui.btnSpinner.style.display = 'flex'; // Flex to center the ::after element
+            } else {
+                this.ui.btnSpinner.style.display = 'none';
+            }
+        }
 
         if (isLoading && this.ui.statusMsg) {
-            this.ui.statusMsg.innerHTML = '';
-            this.ui.statusMsg.className = 'status-msg'; // Reset
+            this.ui.statusMsg.innerHTML = ''; // Ensure no text
+            this.ui.statusMsg.className = 'status-msg';
         }
     },
 
