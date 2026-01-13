@@ -5,18 +5,19 @@ const App = {
         selectedIndices: new Set(),
         title: "paper"
     },
-    
+
     ui: {
         doiInput: document.getElementById('doiInput'),
         extractBtn: document.getElementById('extractBtn'),
         btnText: document.getElementById('btnText'),
         btnSpinner: document.getElementById('btnSpinner'),
         statusMsg: document.getElementById('statusMsg'),
-        
+
         uploadLink: document.getElementById('uploadLink'),
         pdfUploadInput: document.getElementById('pdfUploadInput'),
         uploadArea: document.querySelector('.upload-area'),
-        
+        searchBox: document.querySelector('.search-box'),
+
         resultSection: document.getElementById('resultSection'),
         imgCount: document.getElementById('imgCount'),
         downloadAllBtn: document.getElementById('downloadAllBtn'),
@@ -40,10 +41,57 @@ const App = {
             this.ui.pdfUploadInput.addEventListener('change', (e) => this.handleFileUpload(e));
         }
 
+        // Drag & Drop
+        this.setupDragAndDrop();
+
         // Download Event
         if (this.ui.downloadAllBtn) {
             this.ui.downloadAllBtn.addEventListener('click', () => this.downloadImages());
         }
+    },
+
+    setupDragAndDrop() {
+        const dropZone = this.ui.searchBox;
+        if (!dropZone) return;
+
+        // Prevent default browser behaviors for drag events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight drop zone
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+        });
+
+        // Remove highlight
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+        });
+
+        // Handle Drop
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                    // Update the file input manually to keep sync
+                    if (this.ui.pdfUploadInput) this.ui.pdfUploadInput.files = files;
+                    // Trigger the existing handler
+                    this.handleFileUpload({ target: { files: files } });
+                } else {
+                    this.showStatus('Please drop a valid PDF file.', 'error');
+                }
+            }
+        }, false);
     },
 
     // --- Core Logic ---
@@ -124,21 +172,21 @@ const App = {
     renderSuccess(data) {
         this.showStatus(`Successfully extracted ${data.image_count} images!`, 'success');
         this.state.images = data.images;
-        
+
         // Clean title
         let safeTitle = data.title || "paper";
         safeTitle = safeTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         this.state.title = safeTitle.substring(0, 50);
 
         this.renderGallery(data.images);
-        
+
         // UI Updates
         this.ui.resultSection.classList.add('visible');
         document.body.classList.add('has-results');
-        
+
         // Hide upload link when results are shown (Requirement: Clean UI)
-        if(this.ui.uploadArea) this.ui.uploadArea.style.display = 'none'; 
-        
+        if (this.ui.uploadArea) this.ui.uploadArea.style.display = 'none';
+
         this.updateDownloadBtn();
     },
 
@@ -152,7 +200,7 @@ const App = {
                 <br><span style="font-size: 0.8em; color: gray;">Then upload it above to extract images.</span>
             </span>`;
         // Ensure upload link is visible for manual upload
-        if(this.ui.uploadArea) this.ui.uploadArea.style.display = 'block'; 
+        if (this.ui.uploadArea) this.ui.uploadArea.style.display = 'block';
     },
 
     // --- UI Helpers ---
@@ -164,12 +212,12 @@ const App = {
         images.forEach((img, index) => {
             const card = document.createElement('div');
             card.className = 'img-card';
-            
+
             // Checkbox
             const checkbox = document.createElement('div');
             checkbox.className = 'checkbox-overlay';
             checkbox.innerHTML = '<i class="fa-solid fa-check"></i>';
-            
+
             // Wrapper
             const wrapper = document.createElement('div');
             wrapper.className = 'img-wrapper';
@@ -207,7 +255,7 @@ const App = {
 
     updateDownloadBtn() {
         const count = this.state.selectedIndices.size;
-        this.ui.downloadAllBtn.innerHTML = count > 0 
+        this.ui.downloadAllBtn.innerHTML = count > 0
             ? `<i class="fa-solid fa-download"></i> Download Selected (${count})`
             : `<i class="fa-solid fa-file-zipper"></i> Download All`;
     },
@@ -232,7 +280,7 @@ const App = {
 
         // Multiple -> Zip (using JSZip)
         if (!window.JSZip) {
-            alert("JSZip library not loaded!"); 
+            alert("JSZip library not loaded!");
             return;
         }
 
@@ -254,10 +302,10 @@ const App = {
     setLoading(isLoading) {
         if (this.ui.extractBtn) this.ui.extractBtn.disabled = isLoading;
         if (this.ui.doiInput) this.ui.doiInput.disabled = isLoading;
-        
+
         if (this.ui.btnText) this.ui.btnText.style.display = isLoading ? 'none' : 'block';
         if (this.ui.btnSpinner) this.ui.btnSpinner.style.display = isLoading ? 'block' : 'none';
-        
+
         if (isLoading && this.ui.statusMsg) this.ui.statusMsg.textContent = '';
     },
 
@@ -270,13 +318,13 @@ const App = {
     resetGallery() {
         if (this.ui.gallery) this.ui.gallery.innerHTML = '';
         if (this.ui.resultSection) this.ui.resultSection.classList.remove('visible');
-        
+
         this.state.images = [];
         this.state.selectedIndices.clear();
         this.updateDownloadBtn();
-        
+
         // Show upload link again
-        if(this.ui.uploadArea) this.ui.uploadArea.style.display = 'block';
+        if (this.ui.uploadArea) this.ui.uploadArea.style.display = 'block';
     }
 };
 
