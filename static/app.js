@@ -74,19 +74,22 @@ const App = {
             });
         }
 
-        // Slider Event
+        // Slider Event with Debounce
         if (this.ui.sizeSlider) {
             this.ui.sizeSlider.addEventListener('input', (e) => {
                 const percent = parseInt(e.target.value);
                 this.state.filterThreshold = percent;
 
-                // Update Tooltip
+                // 1. Instant Tooltip Update (Zero Lag)
                 if (this.ui.sliderTooltip) {
                     this.ui.sliderTooltip.textContent = percent === 0 ? "Show All" : `Hide Bottom ${percent}%`;
                 }
 
-                // Re-render
-                this.renderGallery(this.state.images);
+                // 2. Debounced Render (Wait for 50ms pause)
+                if (this.state.debounceTimer) clearTimeout(this.state.debounceTimer);
+                this.state.debounceTimer = setTimeout(() => {
+                    this.renderGallery(this.state.images);
+                }, 50);
             });
         }
 
@@ -398,10 +401,6 @@ const App = {
             targets = this.state.images.filter((_, i) => this.state.selectedIndices.has(i));
         } else {
             // Download all *visible* images (Filtered & Sorted)
-            // We need to re-apply the exact same filtering & sorting logic to get 'current view'
-            // Or easier: Iterate based on current gallery state? No, data model first.
-
-            // Let's replicate the logic cleanly:
             let filtered = [...this.state.images];
             if (this.state.filterSmall && this.state.filterThreshold > 0) {
                 const imagesWithArea = this.state.images.map(img => ({ ...img, area: img.width * img.height }));
@@ -415,7 +414,6 @@ const App = {
                 }
             }
 
-            // Sorting affects download order? Usually Yes, 'Download All' implies 'Download what I see in this order'.
             if (this.state.sortMode === 'asc') {
                 filtered.sort((a, b) => (a.width * a.height) - (b.width * b.height));
             } else if (this.state.sortMode === 'desc') {

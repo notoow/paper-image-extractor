@@ -627,41 +627,42 @@ input[type=range]:active::-webkit-slider-thumb {
     border-radius: 50%;
     background: var(--bg-color);
     position: relative;
-    /* Inset Track */
     box-shadow: inset 2px 2px 4px var(--shadow-dark),
         inset -2px -2px 4px var(--shadow-light);
     display: none;
-    /* Hidden by default */
-    align-items: center;
-    justify-content: center;
 }
 
-/* Rotating Dot/Bead */
+/* Rotating Bead */
 .spinner::after {
     content: '';
     position: absolute;
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: var(--accent);
-    /* The bead pops out */
     box-shadow: 1px 1px 2px var(--shadow-dark),
         -1px -1px 2px var(--shadow-light);
-    top: 2px;
-    left: 50%;
-    transform: translateX(-50%);
-    transform-origin: 0 10px;
-    /* Rotate around center of container */
+
+    /* Position at top center */
+    top: 3px;
+    left: 9px;
+    /* (24 - 6) / 2 = 9px to center horizontally */
+
+    /* Origin is center of container relative to bead */
+    /* Container center is at (12, 12). Bead center is at (12, 6). Distance is 6px. */
+    /* Transform origin y = 6px (distance) + 3px (half height) = 9px. */
+    transform-origin: 50% 9px;
+
     animation: orbit 1s linear infinite;
 }
 
 @keyframes orbit {
-    0% {
-        transform: translateX(-50%) rotate(0deg);
+    from {
+        transform: rotate(0deg);
     }
 
-    100% {
-        transform: translateX(-50%) rotate(360deg);
+    to {
+        transform: rotate(360deg);
     }
 }
 
