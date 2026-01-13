@@ -312,7 +312,7 @@ button:disabled {
     margin-top: 5px;
 }
 
-/* Toggle Styles (Existing adjusted) */
+/* Toggle Styles */
 .filter-toggle-wrapper {
     display: flex;
     align-items: center;
@@ -321,7 +321,47 @@ button:disabled {
     user-select: none;
 }
 
-/* ... (Keep existing toggle track/thumb styles) ... */
+.toggle-track {
+    width: 52px;
+    height: 28px;
+    background: var(--bg-color);
+    border-radius: 50px;
+    position: relative;
+    box-shadow: inset 3px 3px 6px var(--shadow-dark),
+        inset -3px -3px 6px var(--shadow-light);
+    transition: all 0.3s ease;
+}
+
+.toggle-thumb {
+    width: 22px;
+    height: 22px;
+    background: #e0e5ec;
+    border-radius: 50%;
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    box-shadow: 2px 2px 4px var(--shadow-dark),
+        -2px -2px 4px var(--shadow-light);
+    transition: all 0.3s cubic-bezier(0.5, 0, 0.1, 1.1);
+}
+
+.filter-toggle-wrapper.active .toggle-thumb {
+    left: 27px;
+    background: var(--accent);
+    box-shadow: 0 0 10px rgba(109, 93, 252, 0.5);
+}
+
+.toggle-label {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.filter-toggle-wrapper.active .toggle-label {
+    color: var(--text-main);
+}
+
 
 /* Slider Styles */
 .slider-wrapper {
@@ -329,7 +369,6 @@ button:disabled {
     align-items: center;
     position: relative;
     opacity: 0.5;
-    /* Default Disabled look */
     pointer-events: none;
     transition: all 0.3s ease;
 }
@@ -341,6 +380,7 @@ button:disabled {
 
 input[type=range] {
     -webkit-appearance: none;
+    appearance: none;
     width: 120px;
     background: transparent;
 }
@@ -364,8 +404,8 @@ input[type=range]::-webkit-slider-thumb {
     background: #e0e5ec;
     cursor: pointer;
     -webkit-appearance: none;
+    appearance: none;
     margin-top: -4px;
-    /* Center on track */
     box-shadow: 2px 2px 4px var(--shadow-dark),
         -2px -2px 4px var(--shadow-light);
     transition: background 0.2s;
@@ -382,18 +422,19 @@ input[type=range]:active::-webkit-slider-thumb {
 /* Tooltip for value */
 .slider-tooltip {
     position: absolute;
-    top: -25px;
+    top: -30px;
     left: 50%;
     transform: translateX(-50%);
     font-size: 0.75rem;
     color: var(--text-light);
     background: var(--bg-color);
-    padding: 2px 6px;
+    padding: 2px 8px;
     border-radius: 5px;
     box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
     white-space: nowrap;
     opacity: 0;
     transition: opacity 0.2s;
+    pointer-events: none;
 }
 
 .slider-wrapper:hover .slider-tooltip {
@@ -401,53 +442,7 @@ input[type=range]:active::-webkit-slider-thumb {
 }
 
 
-.toggle-track {
-    width: 52px;
-    height: 28px;
-    background: var(--bg-color);
-    border-radius: 50px;
-    position: relative;
-    /* Inset track by default */
-    box-shadow: inset 3px 3px 6px var(--shadow-dark),
-        inset -3px -3px 6px var(--shadow-light);
-    transition: all 0.3s ease;
-}
-
-.toggle-thumb {
-    width: 22px;
-    height: 22px;
-    background: #e0e5ec;
-    border-radius: 50%;
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    /* Thumb pops out */
-    box-shadow: 2px 2px 4px var(--shadow-dark),
-        -2px -2px 4px var(--shadow-light);
-    transition: all 0.3s cubic-bezier(0.5, 0, 0.1, 1.1);
-    /* Bouncy effect */
-}
-
-/* Active (ON) State */
-.filter-toggle-wrapper.active .toggle-thumb {
-    left: 27px;
-    background: var(--accent);
-    /* Glow when active */
-    box-shadow: 0 0 10px rgba(109, 93, 252, 0.5);
-}
-
-.toggle-label {
-    font-size: 0.9rem;
-    color: var(--text-light);
-    font-weight: 500;
-    transition: color 0.3s;
-}
-
-.filter-toggle-wrapper.active .toggle-label {
-    color: var(--text-main);
-}
-
-
+/* Download Button */
 .download-all-btn {
     background: var(--bg-color);
     color: var(--accent);
@@ -654,5 +649,10 @@ input[type=range]:active::-webkit-slider-thumb {
     .download-all-btn {
         width: 100%;
         justify-content: center;
+    }
+
+    .filter-controls {
+        width: 100%;
+        justify-content: space-between;
     }
 }

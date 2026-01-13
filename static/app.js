@@ -4,7 +4,8 @@ const App = {
         images: [],
         selectedIndices: new Set(),
         title: "paper",
-        filterSmall: true // Default: On (Filter small images < ~150x150)
+        filterSmall: true, // Default: On (Filter small images)
+        filterThreshold: 20000 // Default threshold (area in px)
     },
 
     ui: {
@@ -24,7 +25,9 @@ const App = {
         downloadAllBtn: document.getElementById('downloadAllBtn'),
         gallery: document.getElementById('gallery'),
 
-        filterToggle: document.getElementById('filterToggle')
+        filterToggle: document.getElementById('filterToggle'),
+        sizeSlider: document.getElementById('sizeSlider'),
+        sliderTooltip: document.getElementById('sliderTooltip')
     },
 
     init() {
@@ -64,6 +67,24 @@ const App = {
                 this.ui.filterToggle.classList.toggle('active', this.state.filterSmall);
                 // Re-render
                 this.renderGallery(this.state.images);
+            });
+        }
+
+        // Slider Event
+        if (this.ui.sizeSlider) {
+            this.ui.sizeSlider.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                this.state.filterThreshold = val;
+
+                // Update Tooltip
+                if (this.ui.sliderTooltip) {
+                    this.ui.sliderTooltip.textContent = `${(val / 1000).toFixed(0)}k px²`;
+                }
+
+                // Re-render real-time only if filtering is ON
+                if (this.state.filterSmall) {
+                    this.renderGallery(this.state.images);
+                }
             });
         }
     },
@@ -228,11 +249,7 @@ const App = {
         document.body.classList.add('has-results');
 
         // Hide upload buttons when results are shown to clean up UI
-        // Actually, let's keep them hidden as before
         if (this.ui.uploadArea) this.ui.uploadArea.style.display = 'none';
-        // Also hide action buttons wrapper if needed? No, uploadArea is inside it now? 
-        // Wait, uploadArea is just the button. The wrapper is .action-buttons.
-        // Let's hide the wrapper for cleaner look.
         const actionBtns = document.querySelector('.action-buttons');
         if (actionBtns) actionBtns.style.display = 'none';
 
@@ -248,10 +265,10 @@ const App = {
 
     renderGallery(allImages) {
         // Filter Logic: Filter small images if Toggle is ON
-        // Criterion: Width*Height > 20,000 pixels (approx 140x140)
+        // Criterion: Width*Height > filterThreshold
 
         const filteredImages = this.state.filterSmall
-            ? allImages.filter(img => (img.width * img.height) > 20000)
+            ? allImages.filter(img => (img.width * img.height) > this.state.filterThreshold)
             : allImages;
 
         this.ui.imgCount.textContent = filteredImages.length;
@@ -316,10 +333,6 @@ const App = {
     },
 
     async downloadImages() {
-        // If selection exists, download only selected. Else all *currently displayed* (filtered) images?
-        // Usually 'Download All' implies all filtered images.
-        // Let's download based on what user sees or selected.
-
         let targets = [];
         if (this.state.selectedIndices.size > 0) {
             // Download selected specific images
@@ -327,7 +340,7 @@ const App = {
         } else {
             // Download all *visible* images (Filtered)
             targets = this.state.filterSmall
-                ? this.state.images.filter(img => (img.width * img.height) > 20000)
+                ? this.state.images.filter(img => (img.width * img.height) > this.state.filterThreshold)
                 : this.state.images;
         }
 
