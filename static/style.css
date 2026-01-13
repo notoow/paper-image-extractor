@@ -149,14 +149,30 @@ button:disabled {
     box-shadow: none;
 }
 
-/* --- Action Buttons (Upload & Coffee) --- */
-.action-buttons {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 20px;
-    margin-top: 2rem;
-    width: 100%;
+/* Upload Link Styling */
+.upload-area {
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+.upload-link {
+    color: var(--accent);
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    transition: all 0.2s ease;
+}
+
+.upload-link:hover {
+    color: #4834d4;
+    text-shadow: 0 0 10px rgba(109, 93, 252, 0.3);
+}
+
+align-items: center;
+gap: 20px;
+margin-top: 2rem;
+width: 100%;
 }
 
 .neumorphic-btn {
