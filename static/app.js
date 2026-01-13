@@ -3,7 +3,8 @@ const App = {
     state: {
         images: [],
         selectedIndices: new Set(),
-        title: "paper"
+        title: "paper",
+        filterSmall: true // Default: On (Filter small images < ~150x150)
     },
 
     ui: {
@@ -21,7 +22,9 @@ const App = {
         resultSection: document.getElementById('resultSection'),
         imgCount: document.getElementById('imgCount'),
         downloadAllBtn: document.getElementById('downloadAllBtn'),
-        gallery: document.getElementById('gallery')
+        gallery: document.getElementById('gallery'),
+
+        filterToggle: document.getElementById('filterToggle')
     },
 
     init() {
@@ -47,6 +50,21 @@ const App = {
         // Download Event
         if (this.ui.downloadAllBtn) {
             this.ui.downloadAllBtn.addEventListener('click', () => this.downloadImages());
+        }
+
+        // Filter Toggle Event
+        if (this.ui.filterToggle) {
+            // Initialize Visual State
+            if (this.state.filterSmall) {
+                this.ui.filterToggle.classList.add('active');
+            }
+
+            this.ui.filterToggle.addEventListener('click', () => {
+                this.state.filterSmall = !this.state.filterSmall;
+                this.ui.filterToggle.classList.toggle('active', this.state.filterSmall);
+                // Re-render
+                this.renderGallery(this.state.images);
+            });
         }
     },
 
@@ -171,22 +189,26 @@ const App = {
 
     showErrorWithRescueLink(msg) {
         const doi = this.ui.doiInput.value.trim();
-        let html = `<i class="fa-solid fa-triangle-exclamation"></i> ${msg}`;
 
-        // If we have a DOI, append the rescue link
+        // Reset class to remove old status styling, we use rescue-box structure now
+        this.ui.statusMsg.className = '';
+
+        let html = `<div class="rescue-box">
+            <span class="rescue-text"><i class="fa-solid fa-triangle-exclamation"></i> ${msg}</span>`;
+
         if (doi) {
-            html += `<br><div style="margin-top:10px;">
-                <a href="https://doi.org/${doi}" target="_blank" class="neumorphic-btn" style="display:inline-flex; font-size:0.85rem; padding:0.5rem 1rem;">
+            html += `
+                <a href="https://doi.org/${doi}" target="_blank" class="rescue-link-btn">
                     <i class="fa-solid fa-external-link-alt"></i> Open Publisher Site
                 </a>
-            </div>
-            <div style="font-size: 0.8em; color: gray; margin-top:5px;">Download PDF there and drag it here!</div>`;
+                <span class="rescue-hint">Download PDF there and drag it here!</span>
+            `;
         }
+        html += `</div>`;
 
         this.ui.statusMsg.innerHTML = html;
-        this.ui.statusMsg.className = 'status-msg error';
 
-        // Ensure upload link is visible
+        // Ensure upload link is visible for fallback
         if (this.ui.uploadArea) this.ui.uploadArea.style.display = 'block';
     },
 
@@ -205,32 +227,44 @@ const App = {
         this.ui.resultSection.classList.add('visible');
         document.body.classList.add('has-results');
 
-        // Hide upload link when results are shown (Requirement: Clean UI)
+        // Hide upload buttons when results are shown to clean up UI
+        // Actually, let's keep them hidden as before
         if (this.ui.uploadArea) this.ui.uploadArea.style.display = 'none';
+        // Also hide action buttons wrapper if needed? No, uploadArea is inside it now? 
+        // Wait, uploadArea is just the button. The wrapper is .action-buttons.
+        // Let's hide the wrapper for cleaner look.
+        const actionBtns = document.querySelector('.action-buttons');
+        if (actionBtns) actionBtns.style.display = 'none';
 
         this.updateDownloadBtn();
     },
 
     renderManualLink(data) {
-        this.ui.statusMsg.innerHTML = `
-            <span style="color: #ffa502">
-                <i class="fa-solid fa-triangle-exclamation"></i> Protected Paper.<br>
-                <a href="${data.pdf_url}" target="_blank" style="color: #5352ed; font-weight: bold; text-decoration: underline; margin-left: 5px;">
-                    Download PDF manually <i class="fa-solid fa-external-link-alt"></i>
-                </a>
-                <br><span style="font-size: 0.8em; color: gray;">Then upload it above to extract images.</span>
-            </span>`;
-        // Ensure upload link is visible for manual upload
-        if (this.ui.uploadArea) this.ui.uploadArea.style.display = 'block';
+        // Re-use rescue link logic but with specific message
+        this.showErrorWithRescueLink("Protected Paper. Please download manually.");
     },
 
     // --- UI Helpers ---
 
-    renderGallery(images) {
-        this.ui.imgCount.textContent = images.length;
+    renderGallery(allImages) {
+        // Filter Logic: Filter small images if Toggle is ON
+        // Criterion: Width*Height > 20,000 pixels (approx 140x140)
+
+        const filteredImages = this.state.filterSmall
+            ? allImages.filter(img => (img.width * img.height) > 20000)
+            : allImages;
+
+        this.ui.imgCount.textContent = filteredImages.length;
         this.ui.gallery.innerHTML = '';
 
-        images.forEach((img, index) => {
+        // Clear selection to prevent indices mismatch issue
+        this.state.selectedIndices.clear();
+        this.updateDownloadBtn();
+
+        filteredImages.forEach((img) => {
+            // Find original index to maintain correct file naming/referencing if needed
+            const originalIndex = this.state.images.indexOf(img);
+
             const card = document.createElement('div');
             card.className = 'img-card';
 
@@ -249,14 +283,14 @@ const App = {
             // Info
             const info = document.createElement('div');
             info.className = 'img-info';
-            info.innerHTML = `<span>#${index + 1}</span> <span>${img.width}x${img.height}</span>`;
+            info.innerHTML = `<span>#${originalIndex + 1}</span> <span>${img.width}x${img.height}</span>`;
 
             card.append(checkbox, wrapper, info);
             this.ui.gallery.appendChild(card);
 
             // Selection Logic
             card.addEventListener('click', () => {
-                this.toggleSelection(index, card, checkbox);
+                this.toggleSelection(originalIndex, card, checkbox);
             });
         });
     },
@@ -282,9 +316,20 @@ const App = {
     },
 
     async downloadImages() {
-        const targets = this.state.selectedIndices.size > 0
-            ? this.state.images.filter((_, i) => this.state.selectedIndices.has(i))
-            : this.state.images;
+        // If selection exists, download only selected. Else all *currently displayed* (filtered) images?
+        // Usually 'Download All' implies all filtered images.
+        // Let's download based on what user sees or selected.
+
+        let targets = [];
+        if (this.state.selectedIndices.size > 0) {
+            // Download selected specific images
+            targets = this.state.images.filter((_, i) => this.state.selectedIndices.has(i));
+        } else {
+            // Download all *visible* images (Filtered)
+            targets = this.state.filterSmall
+                ? this.state.images.filter(img => (img.width * img.height) > 20000)
+                : this.state.images;
+        }
 
         if (targets.length === 0) return;
 
@@ -309,7 +354,7 @@ const App = {
         // Create folder inside zip
         const folder = zip.folder(this.state.title);
 
-        targets.forEach((img, i) => {
+        targets.forEach((img) => {
             const idx = this.state.images.indexOf(img) + 1;
             const filename = `${this.state.title}_${String(idx).padStart(3, '0')}.${img.ext}`;
             const base64Data = img.base64.split(',')[1];
@@ -327,7 +372,10 @@ const App = {
         if (this.ui.btnText) this.ui.btnText.style.display = isLoading ? 'none' : 'block';
         if (this.ui.btnSpinner) this.ui.btnSpinner.style.display = isLoading ? 'block' : 'none';
 
-        if (isLoading && this.ui.statusMsg) this.ui.statusMsg.textContent = '';
+        if (isLoading && this.ui.statusMsg) {
+            this.ui.statusMsg.innerHTML = '';
+            this.ui.statusMsg.className = 'status-msg'; // Reset
+        }
     },
 
     showStatus(msg, type = 'normal') {
@@ -344,8 +392,9 @@ const App = {
         this.state.selectedIndices.clear();
         this.updateDownloadBtn();
 
-        // Show upload link again
-        if (this.ui.uploadArea) this.ui.uploadArea.style.display = 'block';
+        // Show action buttons again
+        const actionBtns = document.querySelector('.action-buttons');
+        if (actionBtns) actionBtns.style.display = 'flex';
     }
 };
 

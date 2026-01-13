@@ -57,7 +57,6 @@ body.has-results {
 .search-box {
     background: var(--bg-color);
     padding: 3rem 3rem 1.5rem 3rem;
-    /* Reduced bottom padding */
     border-radius: var(--radius-main);
     box-shadow:
         9px 9px 16px var(--shadow-dark),
@@ -157,7 +156,6 @@ button:disabled {
     align-items: center;
     gap: 20px;
     margin-top: 2rem;
-    /* Comfortable distance from input */
     width: 100%;
 }
 
@@ -174,8 +172,6 @@ button:disabled {
     gap: 8px;
     transition: all 0.3s ease;
     background: var(--bg-color);
-
-    /* Soft Neumorphic Shadow */
     box-shadow:
         5px 5px 10px var(--shadow-dark),
         -5px -5px 10px var(--shadow-light);
@@ -199,30 +195,73 @@ button:disabled {
     color: #FF813F;
 }
 
-
-/* Status Message - Zero height when empty */
+/* --- Rescue Box (Styled Error Notification) --- */
 .status-msg {
-    min-height: 0;
-    /* Remove fixed height */
     margin: 0;
-    /* Remove Default margin */
-    font-size: 0.95rem;
-    font-weight: 500;
     transition: all 0.3s ease;
 }
 
-/* Only apply spacing when message exists */
-.status-msg:not(:empty) {
-    margin-top: 15px;
-    min-height: 20px;
+.rescue-box {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    border-radius: 20px;
+    background: var(--bg-color);
+    /* Inset look: Key to Neumorphism for 'contained' notifications */
+    box-shadow: inset 5px 5px 10px var(--shadow-dark),
+        inset -5px -5px 10px var(--shadow-light);
+    text-align: center;
+    animation: fadeIn 0.5s ease;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.status-msg.error {
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.rescue-text {
     color: #ff6b6b;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: block;
+    font-size: 0.95rem;
 }
 
-.status-msg.success {
-    color: #1dd1a1;
+.rescue-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.8rem 1.5rem;
+    border-radius: 30px;
+    background: var(--bg-color);
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    box-shadow: 5px 5px 10px var(--shadow-dark),
+        -5px -5px 10px var(--shadow-light);
+    transition: all 0.3s ease;
+}
+
+.rescue-link-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 7px 7px 14px var(--shadow-dark),
+        -7px -7px 14px var(--shadow-light);
+}
+
+.rescue-hint {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 1rem;
 }
 
 
@@ -240,19 +279,87 @@ button:disabled {
     opacity: 1;
 }
 
+/* Result Header Layout */
 .result-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
     padding: 0 1rem;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
 .result-header h2 {
     color: var(--text-main);
     text-shadow: 1px 1px 2px var(--shadow-light);
     margin: 0;
+    white-space: nowrap;
 }
+
+/* --- Neumorphic Toggle Switch --- */
+.filter-toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    margin-top: 5px;
+}
+
+.toggle-track {
+    width: 52px;
+    height: 28px;
+    background: var(--bg-color);
+    border-radius: 50px;
+    position: relative;
+    /* Inset track by default */
+    box-shadow: inset 3px 3px 6px var(--shadow-dark),
+        inset -3px -3px 6px var(--shadow-light);
+    transition: all 0.3s ease;
+}
+
+.toggle-thumb {
+    width: 22px;
+    height: 22px;
+    background: #e0e5ec;
+    border-radius: 50%;
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    /* Thumb pops out */
+    box-shadow: 2px 2px 4px var(--shadow-dark),
+        -2px -2px 4px var(--shadow-light);
+    transition: all 0.3s cubic-bezier(0.5, 0, 0.1, 1.1);
+    /* Bouncy effect */
+}
+
+/* Active (ON) State */
+.filter-toggle-wrapper.active .toggle-thumb {
+    left: 27px;
+    background: var(--accent);
+    /* Glow when active */
+    box-shadow: 0 0 10px rgba(109, 93, 252, 0.5);
+}
+
+.toggle-label {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.filter-toggle-wrapper.active .toggle-label {
+    color: var(--text-main);
+}
+
 
 .download-all-btn {
     background: var(--bg-color);
@@ -448,6 +555,16 @@ button:disabled {
     }
 
     .neumorphic-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .result-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .download-all-btn {
         width: 100%;
         justify-content: center;
     }
