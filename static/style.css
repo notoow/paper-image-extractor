@@ -417,15 +417,67 @@ button:disabled {
 
     .input-group {
         flex-direction: column;
+
+        button {
+            width: 100%;
+        }
+    }
+
+    /* End Media Query */
+
+    /* Footer & Coffee Button */
+    .footer {
+        margin-top: 5rem;
+        margin-bottom: 3rem;
+        display: flex;
+        justify-content: center;
         width: 100%;
     }
 
-    input[type="text"] {
-        width: 100%;
-        box-sizing: border-box;
+    .coffee-btn {
+        text-decoration: none;
+        font-family: var(--font-main);
+        font-weight: 600;
+        font-size: 1rem;
+        color: var(--text-light);
+        /* Subtle default color */
+        background: var(--bg-color);
+        padding: 1rem 2rem;
+        border-radius: 50px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transition: all 0.3s ease;
+
+        /* Neumorphism Flat State */
+        box-shadow:
+            6px 6px 10px var(--shadow-dark),
+            -6px -6px 10px var(--shadow-light);
     }
 
-    button {
-        width: 100%;
+    .coffee-btn i {
+        color: #FF813F;
+        /* Buy Me a Coffee Orange brand color */
+        font-size: 1.2rem;
+        transition: transform 0.3s ease;
     }
-}
+
+    .coffee-btn:hover {
+        color: var(--text-main);
+        /* Darker text on hover */
+        transform: translateY(-3px);
+        box-shadow:
+            9px 9px 18px var(--shadow-dark),
+            -9px -9px 18px var(--shadow-light);
+    }
+
+    .coffee-btn:hover i {
+        transform: scale(1.2) rotate(-10deg);
+        /* Playful icon animation */
+    }
+
+    .coffee-btn:active {
+        transform: translateY(1px);
+        box-shadow: inset 3px 3px 6px var(--shadow-dark),
+            inset -3px -3px 6px var(--shadow-light);
+    }
