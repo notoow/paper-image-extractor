@@ -206,7 +206,6 @@ button:disabled {
     padding: 1.5rem;
     border-radius: 20px;
     background: var(--bg-color);
-    /* Inset look: Key to Neumorphism for 'contained' notifications */
     box-shadow: inset 5px 5px 10px var(--shadow-dark),
         inset -5px -5px 10px var(--shadow-light);
     text-align: center;
@@ -439,6 +438,43 @@ input[type=range]:active::-webkit-slider-thumb {
 
 .slider-wrapper:hover .slider-tooltip {
     opacity: 1;
+}
+
+/* Icon Button (for Sort, etc.) */
+.neumorphic-icon-btn {
+    width: 45px;
+    height: 45px;
+    border-radius: 15px;
+    /* Softer corners */
+    padding: 0;
+    min-width: unset;
+    /* Override default button min-width */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: var(--text-light);
+    background: var(--bg-color);
+    border: none;
+    cursor: pointer;
+    box-shadow:
+        5px 5px 10px var(--shadow-dark),
+        -5px -5px 10px var(--shadow-light);
+    transition: all 0.2s ease;
+}
+
+.neumorphic-icon-btn:hover {
+    transform: translateY(-2px);
+    color: var(--accent);
+    box-shadow:
+        7px 7px 12px var(--shadow-dark),
+        -7px -7px 12px var(--shadow-light);
+}
+
+.neumorphic-icon-btn:active {
+    transform: translateY(1px);
+    box-shadow: inset 3px 3px 6px var(--shadow-dark),
+        inset -3px -3px 6px var(--shadow-light);
 }
 
 

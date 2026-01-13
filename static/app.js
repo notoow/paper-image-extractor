@@ -73,34 +73,6 @@ const App = {
             });
         }
 
-        // Sort Button
-        if (this.ui.sortBtn) {
-            this.ui.sortBtn.addEventListener('click', () => {
-                const modes = ['original', 'asc', 'desc'];
-                const icons = {
-                    'original': '<i class="fa-solid fa-arrow-down-1-9"></i>',
-                    'asc': '<i class="fa-solid fa-arrow-up-wide-short"></i>', // Small to Large (technically 'up' increases) - let's use 'arrow-up-short-wide'
-                    'desc': '<i class="fa-solid fa-arrow-down-wide-short"></i>' // Large to Small
-                };
-
-                // Cycle Mode
-                const currentIdx = modes.indexOf(this.state.sortMode);
-                this.state.sortMode = modes[(currentIdx + 1) % modes.length];
-
-                // Update Icon & Title
-                const iconClass = {
-                    'original': 'fa-arrow-down-1-9',
-                    'asc': 'fa-arrow-up-short-wide',  // Small -> Large
-                    'desc': 'fa-arrow-down-wide-short' // Large -> Small
-                };
-
-                this.ui.sortBtn.innerHTML = `<i class="fa-solid ${iconClass[this.state.sortMode]}"></i>`;
-
-                // Re-render
-                this.renderGallery(this.state.images);
-            });
-        }
-
         // Slider Event
         if (this.ui.sizeSlider) {
             this.ui.sizeSlider.addEventListener('input', (e) => {
@@ -111,6 +83,34 @@ const App = {
                 if (this.ui.sliderTooltip) {
                     this.ui.sliderTooltip.textContent = percent === 0 ? "Show All" : `Hide Bottom ${percent}%`;
                 }
+
+                // Re-render
+                this.renderGallery(this.state.images);
+            });
+        }
+
+        // Sort Button
+        if (this.ui.sortBtn) {
+            this.ui.sortBtn.addEventListener('click', () => {
+                const modes = ['original', 'asc', 'desc'];
+                const icons = {
+                    'original': '<i class="fa-solid fa-arrow-down-1-9"></i>',
+                    'asc': '<i class="fa-solid fa-arrow-up-wide-short"></i>', // Small to Large
+                    'desc': '<i class="fa-solid fa-arrow-down-wide-short"></i>' // Large to Small
+                };
+
+                // Cycle Mode
+                const currentIdx = modes.indexOf(this.state.sortMode);
+                this.state.sortMode = modes[(currentIdx + 1) % modes.length];
+
+                // Update Icon
+                const iconClass = {
+                    'original': 'fa-arrow-down-1-9',
+                    'asc': 'fa-arrow-up-short-wide',  // Small to Large
+                    'desc': 'fa-arrow-down-wide-short' // Large to Small
+                };
+
+                this.ui.sortBtn.innerHTML = `<i class="fa-solid ${iconClass[this.state.sortMode]}"></i>`;
 
                 // Re-render
                 this.renderGallery(this.state.images);
@@ -172,15 +172,7 @@ const App = {
         }
 
         this.setLoading(true);
-        // Note: We don't show text 'Running magic...' anymore based on request, 
-        // setLoading handles hiding text. But showStatus might overwrite if not careful.
-        // Let's just pass empty string or rely on setLoading.
-        // Actually, let's allow showStatus to work but rely on setLoading to hide the text element of the BUTTON.
-        // But the status MSG below needs to be cleared or show something? 
-        // User requested removing "Uploading and analyzing..." text.
-        // Let's keep statusMsg clean.
         this.showStatus('');
-
         this.resetGallery();
 
         try {
@@ -214,7 +206,7 @@ const App = {
         formData.append('file', file);
 
         this.setLoading(true);
-        this.showStatus(''); // Clear text
+        this.showStatus('');
         this.resetGallery();
 
         try {
@@ -307,51 +299,45 @@ const App = {
             return;
         }
 
-        let filteredImages = allImages;
+        let filteredImages = [...allImages]; // Copy array
 
-        // Semantic Filter Logic: Relative Percentile
-        // If Toggle is ON and Slider > 0 (meaning we want to hide some bottom %)
+        // 1. Semantic Filter Logic: Relative Percentile
         if (this.state.filterSmall && this.state.filterThreshold > 0) {
-            // 1. Calculate Area for all
             const imagesWithArea = allImages.map(img => ({
                 ...img,
                 area: img.width * img.height
             }));
 
-            // 2. Sort by Area Ascending to find cutoff
-            const sorted = [...imagesWithArea].sort((a, b) => a.area - b.area);
+            // Sort by Area Ascending to find cutoff
+            const sortedByArea = [...imagesWithArea].sort((a, b) => a.area - b.area);
+            const cutoffIndex = Math.floor(sortedByArea.length * (this.state.filterThreshold / 100));
 
-            // 3. Find cutoff index based on percentage
-            // e.g. 20% -> hide bottom 20% -> index = length * 0.2
-            // Math.ceil ensures we hide at least one if percentage is small but non-zero? 
-            // Math.floor is safer to avoid index out of bounds.
-            const cutoffIndex = Math.floor(sorted.length * (this.state.filterThreshold / 100));
-
-            // Safety check
-            if (cutoffIndex < sorted.length) {
-                const cutoffArea = sorted[cutoffIndex].area;
-                // 4. Filter: Keep images LARGER (or equal? let's say larger to be strict) than the cutoff area
-                // If cutoffIndex is 0 (0%), cutoffArea is smallest.
-                // We want to hide BOTTOM X%. So if X=20%, we hide items 0 to 0.2*L.
-                // We keep items from 0.2*L to L.
-                // So we keep items with area >= sorted[cutoffIndex].area
-
+            if (cutoffIndex < sortedByArea.length) {
+                const cutoffArea = sortedByArea[cutoffIndex].area;
+                // Filter relative to original cutoff
                 filteredImages = allImages.filter(img => (img.width * img.height) >= cutoffArea);
             } else {
-                // If 100%, hide all? usually yes.
                 filteredImages = [];
             }
         }
 
+        // 2. Sort Logic (Display Order)
+        if (this.state.sortMode === 'asc') {
+            // Small to Large
+            filteredImages.sort((a, b) => (a.width * a.height) - (b.width * b.height));
+        } else if (this.state.sortMode === 'desc') {
+            // Large to Small
+            filteredImages.sort((a, b) => (b.width * b.height) - (a.width * a.height));
+        }
+        // 'original' = do nothing (already in PDF order)
+
         this.ui.imgCount.textContent = filteredImages.length;
         this.ui.gallery.innerHTML = '';
-
-        // Clear selection to prevent indices mismatch issue
         this.state.selectedIndices.clear();
         this.updateDownloadBtn();
 
         filteredImages.forEach((img) => {
-            // Find original index to maintain correct file naming/referencing if needed
+            // Find original index to maintain correct file naming/referencing!
             const originalIndex = this.state.images.indexOf(img);
 
             const card = document.createElement('div');
@@ -410,25 +396,32 @@ const App = {
             // Download selected specific images
             targets = this.state.images.filter((_, i) => this.state.selectedIndices.has(i));
         } else {
-            // Download all *visible* images (Filtered)
-            // Re-apply filter logic here to be safe or rely on render?
-            // Safer to re-apply filter logic or check against currently rendered DOM?
-            // Re-calc logic is safest SSOT.
+            // Download all *visible* images (Filtered & Sorted)
+            // We need to re-apply the exact same filtering & sorting logic to get 'current view'
+            // Or easier: Iterate based on current gallery state? No, data model first.
 
+            // Let's replicate the logic cleanly:
+            let filtered = [...this.state.images];
             if (this.state.filterSmall && this.state.filterThreshold > 0) {
                 const imagesWithArea = this.state.images.map(img => ({ ...img, area: img.width * img.height }));
-                const sorted = [...imagesWithArea].sort((a, b) => a.area - b.area);
-                const cutoffIndex = Math.floor(sorted.length * (this.state.filterThreshold / 100));
-
-                if (cutoffIndex < sorted.length) {
-                    const cutoffArea = sorted[cutoffIndex].area;
-                    targets = this.state.images.filter(img => (img.width * img.height) >= cutoffArea);
+                const sortedArea = [...imagesWithArea].sort((a, b) => a.area - b.area);
+                const cutoffIndex = Math.floor(sortedArea.length * (this.state.filterThreshold / 100));
+                if (cutoffIndex < sortedArea.length) {
+                    const cutoffArea = sortedArea[cutoffIndex].area;
+                    filtered = this.state.images.filter(img => (img.width * img.height) >= cutoffArea);
                 } else {
-                    targets = [];
+                    filtered = [];
                 }
-            } else {
-                targets = this.state.images;
             }
+
+            // Sorting affects download order? Usually Yes, 'Download All' implies 'Download what I see in this order'.
+            if (this.state.sortMode === 'asc') {
+                filtered.sort((a, b) => (a.width * a.height) - (b.width * b.height));
+            } else if (this.state.sortMode === 'desc') {
+                filtered.sort((a, b) => (b.width * b.height) - (a.width * a.height));
+            }
+
+            targets = filtered;
         }
 
         if (targets.length === 0) return;
@@ -437,7 +430,7 @@ const App = {
         if (targets.length === 1) {
             const link = document.createElement('a');
             link.href = targets[0].base64;
-            // Pad index for filename
+            // Pad index for filename based on ORIGINAL pos
             const idx = this.state.images.indexOf(targets[0]) + 1;
             link.download = `${this.state.title}_${String(idx).padStart(3, '0')}.${targets[0].ext}`;
             link.click();
