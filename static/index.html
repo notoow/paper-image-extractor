@@ -117,7 +117,36 @@
         </div>
     </div>
 
-    <script src="app.js?v=14"></script>
+    <!-- Chat Widget (Paper War) -->
+    <button class="chat-toggle" id="chatToggle" title="Open Global Chat">
+        <i class="fa-regular fa-comments"></i>
+        <span class="chat-badge" id="chatBadge"></span>
+    </button>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="chat-header">
+            <div class="header-title">
+                <i class="fa-solid fa-earth-americas"></i> Global Chat
+            </div>
+            <button class="close-chat" id="closeChat"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <!-- Mini Leaderboard -->
+        <div class="chat-rank" id="leaderboard">
+            <div class="rank-item skeleton">Waiting for players...</div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="system-msg">Welcome to Paper War! 🏳️<br>Represent your country!</div>
+        </div>
+
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" placeholder="Type a message..." maxlength="100">
+            <button id="sendChatBtn"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <script src="app.js?v=15"></script>
 </body>
 
 </html>
