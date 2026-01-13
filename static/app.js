@@ -6,7 +6,8 @@ const App = {
         title: "paper",
         filterSmall: true,
         filterThreshold: 20, // Default: Hide bottom 20%
-        sortMode: 'original' // 'original', 'asc', 'desc'
+        sortMode: 'original', // 'original', 'asc', 'desc'
+        debounceTimer: null
     },
 
     ui: {
