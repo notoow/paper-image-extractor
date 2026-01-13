@@ -1,11 +1,11 @@
 // --- SSOT: Application State ---
 const App = {
     state: {
-        images: [],
+        images: [], // All images
         selectedIndices: new Set(),
         title: "paper",
-        filterSmall: true, // Default: On (Filter small images)
-        filterThreshold: 20000 // Default threshold (area in px)
+        filterSmall: true,
+        filterThreshold: 20 // Default: Hide bottom 20%
     },
 
     ui: {
@@ -73,18 +73,16 @@ const App = {
         // Slider Event
         if (this.ui.sizeSlider) {
             this.ui.sizeSlider.addEventListener('input', (e) => {
-                const val = parseInt(e.target.value);
-                this.state.filterThreshold = val;
+                const percent = parseInt(e.target.value);
+                this.state.filterThreshold = percent;
 
                 // Update Tooltip
                 if (this.ui.sliderTooltip) {
-                    this.ui.sliderTooltip.textContent = `${(val / 1000).toFixed(0)}k px²`;
+                    this.ui.sliderTooltip.textContent = percent === 0 ? "Show All" : `Hide Bottom ${percent}%`;
                 }
 
-                // Re-render real-time only if filtering is ON
-                if (this.state.filterSmall) {
-                    this.renderGallery(this.state.images);
-                }
+                // Re-render
+                this.renderGallery(this.state.images);
             });
         }
     },

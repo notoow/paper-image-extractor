@@ -584,25 +584,55 @@ input[type=range]:active::-webkit-slider-thumb {
     position: relative;
 }
 
-/* Raised Icon effect for spinners or small elements */
+/* Neumorphic Loader */
 .spinner {
-    border: 3px solid rgba(109, 93, 252, 0.2);
-    border-top: 3px solid var(--accent);
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    animation: spin 1s linear infinite;
+    background: var(--bg-color);
+    position: relative;
+    /* Inset Track */
+    box-shadow: inset 2px 2px 4px var(--shadow-dark),
+        inset -2px -2px 4px var(--shadow-light);
     display: none;
+    /* Hidden by default */
+    align-items: center;
+    justify-content: center;
 }
 
-@keyframes spin {
+/* Rotating Dot/Bead */
+.spinner::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    /* The bead pops out */
+    box-shadow: 1px 1px 2px var(--shadow-dark),
+        -1px -1px 2px var(--shadow-light);
+    top: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    transform-origin: 0 10px;
+    /* Rotate around center of container */
+    animation: orbit 1s linear infinite;
+}
+
+@keyframes orbit {
     0% {
-        transform: rotate(0deg);
+        transform: translateX(-50%) rotate(0deg);
     }
 
     100% {
-        transform: rotate(360deg);
+        transform: translateX(-50%) rotate(360deg);
     }
+}
+
+/* Ensure Button Layout accommodates spinner */
+#btnSpinner {
+    display: none;
+    /* Controlled by JS */
 }
 
 /* Responseiveness */
