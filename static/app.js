@@ -3,9 +3,9 @@ const App = {
     state: {
         images: [], // All images (Raw Data)
         selectedIndices: new Set(),
-        deletedIndices: new Set(), // Track deleted images
+        deletedIndices: new Set(),
+        lastSelectedIndex: null, // For Shift-Click Range Selection
         title: "paper",
-        filterSmall: true,
         filterThreshold: 20, // Default: Hide bottom 20%
         sortMode: 'original',
         debounceTimer: null
@@ -28,7 +28,6 @@ const App = {
         downloadAllBtn: document.getElementById('downloadAllBtn'),
         gallery: document.getElementById('gallery'),
 
-        filterToggle: document.getElementById('filterToggle'),
         sizeSlider: document.getElementById('sizeSlider'),
         sliderTooltip: document.getElementById('sliderTooltip'),
 
@@ -37,7 +36,6 @@ const App = {
     },
 
     init() {
-        // ... (Listeners same as before) ...
         if (this.ui.extractBtn) this.ui.extractBtn.addEventListener('click', () => this.processDoi());
         if (this.ui.doiInput) this.ui.doiInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') this.processDoi(); });
         if (this.ui.uploadLink && this.ui.pdfUploadInput) {
@@ -48,30 +46,23 @@ const App = {
 
         if (this.ui.downloadAllBtn) this.ui.downloadAllBtn.addEventListener('click', () => this.downloadImages());
 
-        // Trash Button Logic
         if (this.ui.trashBtn) {
             this.ui.trashBtn.addEventListener('click', () => this.deleteSelectedImages());
         }
 
-        if (this.ui.filterToggle) {
-            if (this.state.filterSmall) this.ui.filterToggle.classList.add('active');
-            this.ui.filterToggle.addEventListener('click', () => {
-                this.state.filterSmall = !this.state.filterSmall;
-                this.ui.filterToggle.classList.toggle('active', this.state.filterSmall);
-                this.applyVisibilityFilter();
-            });
-        }
-
+        // Slider Logic (Always Active)
         if (this.ui.sizeSlider) {
+            // Initial Tooltip
+            if (this.ui.sliderTooltip) this.ui.sliderTooltip.textContent = `Hide Bottom ${this.state.filterThreshold}%`;
+
             this.ui.sizeSlider.addEventListener('input', (e) => {
                 const percent = parseInt(e.target.value);
                 this.state.filterThreshold = percent;
                 if (this.ui.sliderTooltip) this.ui.sliderTooltip.textContent = percent === 0 ? "Show All" : `Hide Bottom ${percent}%`;
+
                 // Debounce Logic
                 if (this.state.debounceTimer) clearTimeout(this.state.debounceTimer);
-                if (this.state.filterSmall) {
-                    this.state.debounceTimer = setTimeout(() => this.applyVisibilityFilter(), 20); // Fast Visual Update
-                }
+                this.state.debounceTimer = setTimeout(() => this.applyVisibilityFilter(), 20);
             });
         }
 
@@ -87,19 +78,13 @@ const App = {
         }
     },
 
-    // ... (Network Setup Same) ...
+    // ... (Network & DragDrop Same)
     setupDragAndDrop() {
         const dropZone = this.ui.searchBox;
         if (!dropZone) return;
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
-        });
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
-        });
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
-        });
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); }, false));
+        ['dragenter', 'dragover'].forEach(ev => dropZone.addEventListener(ev, () => dropZone.classList.add('drag-over'), false));
+        ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, () => dropZone.classList.remove('drag-over'), false));
         dropZone.addEventListener('drop', (e) => {
             const dt = e.dataTransfer;
             const files = dt.files;
@@ -125,11 +110,7 @@ const App = {
             const response = await fetch('/api/process', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doi: doi }) });
             const data = await response.json();
             this.handleResponse(response, data);
-        } catch (error) {
-            this.showErrorWithRescueLink('Network error or timeout.');
-        } finally {
-            this.setLoading(false);
-        }
+        } catch (error) { this.showErrorWithRescueLink('Network error or timeout.'); } finally { this.setLoading(false); }
     },
 
     async handleFileUpload(e) {
@@ -144,12 +125,7 @@ const App = {
             const response = await fetch('/api/upload', { method: 'POST', body: formData });
             const data = await response.json();
             this.handleResponse(response, data);
-        } catch (error) {
-            this.showStatus('Error uploading file.', 'error');
-        } finally {
-            this.setLoading(false);
-            this.ui.pdfUploadInput.value = '';
-        }
+        } catch (error) { this.showStatus('Error uploading file.', 'error'); } finally { this.setLoading(false); this.ui.pdfUploadInput.value = ''; }
     },
 
     handleResponse(response, data) {
@@ -184,13 +160,18 @@ const App = {
         this.updateDownloadBtn();
     },
 
-    // --- Smart Interaction Logic ---
+    // --- Smart Interaction Logic Only ---
 
     renderGallery(allImages) {
         this.ui.gallery.innerHTML = '';
         this.state.selectedIndices.clear();
+        this.state.lastSelectedIndex = null; // Reset shift anchor
 
         // Sort Logic
+        // For correct range selection, we need to know the CURRENT display order.
+        // We will store "displayIndex" alongside originalIndex in DOM if needed, 
+        // or just rely on DOM order for range selection. DOM order is best for visual range.
+
         let displayImages = [...allImages];
         if (this.state.sortMode === 'asc') {
             displayImages.sort((a, b) => (a.width * a.height) - (b.width * b.height));
@@ -200,33 +181,35 @@ const App = {
 
         displayImages.forEach((img) => {
             const originalIndex = this.state.images.indexOf(img);
-            if (this.state.deletedIndices.has(originalIndex)) return; // Don't render if deleted (or render hidden, but safer to skip)
-
-            // Re-think: If we skip render, we break array mapping if we rely on loop index?
-            // No, we rely on `originalIndex` stored in dataset. So skipping is safe and better.
+            if (this.state.deletedIndices.has(originalIndex)) return;
 
             const area = img.width * img.height;
             const card = document.createElement('div');
             card.className = 'img-card';
             card.dataset.area = area;
-            card.dataset.index = originalIndex;
+            card.dataset.id = originalIndex; // Use 'id' for clean separation
 
             const checkbox = document.createElement('div');
             checkbox.className = 'checkbox-overlay';
             checkbox.innerHTML = '<i class="fa-solid fa-check"></i>';
+            // Checkbox -> Always Select, handles Shift too
             checkbox.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.toggleSelection(originalIndex, card, checkbox);
+                this.handleSelectionClick(originalIndex, card, e.shiftKey);
             });
 
             const wrapper = document.createElement('div');
             wrapper.className = 'img-wrapper';
             const imgEl = document.createElement('img');
             imgEl.src = img.base64;
+            imgEl.draggable = false; // Prevent ghost drag
             wrapper.appendChild(imgEl);
+
+            // Image Click -> Smart Action
             wrapper.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.handleSmartClick(originalIndex, card, checkbox);
+                // Pass shiftKey
+                this.handleSmartClick(originalIndex, card, e.shiftKey);
             });
 
             const info = document.createElement('div');
@@ -237,60 +220,117 @@ const App = {
             this.ui.gallery.appendChild(card);
 
             card.addEventListener('click', (e) => {
-                this.toggleSelection(originalIndex, card, checkbox);
+                this.handleSelectionClick(originalIndex, card, e.shiftKey);
             });
         });
 
         this.applyVisibilityFilter(); // Initial Hide
     },
 
-    handleSmartClick(index, card, checkbox) {
+    // Handle Image Click (Wrapper)
+    handleSmartClick(index, card, isShift) {
+        // If selection mode active OR Shift is pressed -> Selection Logic
         const isSelectMode = this.state.selectedIndices.size > 0;
-        if (isSelectMode) {
-            this.toggleSelection(index, card, checkbox);
+
+        if (isSelectMode || isShift) {
+            this.handleSelectionClick(index, card, isShift);
         } else {
+            // Idle Mode -> Direct Download
             this.downloadSingleImage(index);
         }
     },
 
-    toggleSelection(index, card, checkbox) {
+    // Handle Selection (Checkbox/Card/SmartClick)
+    handleSelectionClick(index, card, isShift) {
+        // Range Selection Logic
+        if (isShift && this.state.lastSelectedIndex !== null) {
+            this.selectRange(this.state.lastSelectedIndex, index);
+        } else {
+            // Normal Toggle
+            this.toggleSelection(index, card);
+        }
+
+        // Update anchor
+        this.state.lastSelectedIndex = index;
+    },
+
+    toggleSelection(index, card) {
+        // We need to support toggle state for Range too? 
+        // For range, we usually select all. 
+        // Here we just toggle single item.
+
         if (this.state.selectedIndices.has(index)) {
             this.state.selectedIndices.delete(index);
             card.classList.remove('selected');
-            checkbox.classList.remove('checked');
+            card.querySelector('.checkbox-overlay').classList.remove('checked');
         } else {
             this.state.selectedIndices.add(index);
             card.classList.add('selected');
-            checkbox.classList.add('checked');
+            card.querySelector('.checkbox-overlay').classList.add('checked');
+        }
+        this.updateDownloadBtn();
+    },
+
+    selectRange(fromIds, toIds) {
+        // We need to find elements between these two IDs in the DOM order (Visual Order)
+        // NOT index order, because of Sorting.
+
+        const cards = Array.from(this.ui.gallery.children);
+        // Filter out hidden (deleted or filtered) ones usually ranges respect visibility?
+        // Let's iterate all current DOM children (which are "sorted" correctly).
+
+        const visibleCards = cards.filter(c => c.style.display !== 'none');
+
+        let startIndex = visibleCards.findIndex(c => parseInt(c.dataset.id) === fromIds);
+        let endIndex = visibleCards.findIndex(c => parseInt(c.dataset.id) === toIds);
+
+        if (startIndex === -1 || endIndex === -1) {
+            // Fallback if one is hidden/deleted (shouldn't happen for lastSelectedIndex but possible if filtered)
+            // If fallback fails, just select the target
+            const targetCard = cards.find(c => parseInt(c.dataset.id) === toIds);
+            if (targetCard) this.toggleSelection(toIds, targetCard);
+            return;
+        }
+
+        const [start, end] = [Math.min(startIndex, endIndex), Math.max(startIndex, endIndex)];
+
+        // Select all in range
+        // Standard UX: If Set is mixed, maybe Add to selection? Or Replace?
+        // Windows Explorer: Shift Click ADDS to selection range from Anchor.
+        // It does NOT toggle off things outside usually, or does it?
+        // Let's implement ADDITIVE Range Selection.
+
+        for (let i = start; i <= end; i++) {
+            const card = visibleCards[i];
+            const idx = parseInt(card.dataset.id);
+            if (!this.state.selectedIndices.has(idx)) {
+                this.state.selectedIndices.add(idx);
+                card.classList.add('selected');
+                card.querySelector('.checkbox-overlay').classList.add('checked');
+            }
         }
         this.updateDownloadBtn();
     },
 
     deleteSelectedImages() {
         if (this.state.selectedIndices.size === 0) return;
-
         const indicesToDelete = Array.from(this.state.selectedIndices);
 
-        // 1. Visual Feedback: Apple-style "Shrink & Disappear"
         const cards = this.ui.gallery.children;
         for (let card of cards) {
-            const idx = parseInt(card.dataset.index);
+            const idx = parseInt(card.dataset.id); // changed to dataset.id
             if (this.state.selectedIndices.has(idx)) {
-                card.classList.add('deleting'); // Triggers CSS scale/opacity transition
-                card.classList.remove('selected'); // Remove selection border immediately
+                card.classList.add('deleting');
+                card.classList.remove('selected');
             }
         }
 
-        // 2. Wait for animation to finish (400ms), then logically remove
         setTimeout(() => {
             indicesToDelete.forEach(idx => this.state.deletedIndices.add(idx));
             this.state.selectedIndices.clear();
+            this.state.lastSelectedIndex = null; // Reset anchor on delete
             this.updateDownloadBtn();
-
-            // Effectively hide them from layout (using visibility filter logic)
             this.applyVisibilityFilter();
-
-            // Clean up class just in case they are re-shown (unlikely)
             for (let card of cards) {
                 if (card.classList.contains('deleting')) card.classList.remove('deleting');
             }
@@ -301,7 +341,7 @@ const App = {
         if (!this.state.images.length) return;
 
         let cutoffArea = 0;
-        if (this.state.filterSmall && this.state.filterThreshold > 0) {
+        if (this.state.filterThreshold > 0) {
             const areas = this.state.images.map(img => img.width * img.height).sort((a, b) => a - b);
             const cutoffIndex = Math.floor(areas.length * (this.state.filterThreshold / 100));
             cutoffArea = areas[cutoffIndex] || 0;
@@ -311,17 +351,14 @@ const App = {
         let visibleCount = 0;
 
         for (let card of cards) {
-            const idx = parseInt(card.dataset.index);
-
-            // 1. Check Deleted
+            const idx = parseInt(card.dataset.id);
             if (this.state.deletedIndices.has(idx)) {
                 card.style.display = 'none';
                 continue;
             }
-
-            // 2. Check Size Filter
             const area = parseInt(card.dataset.area);
-            const isVisible = (!this.state.filterSmall) || (area >= cutoffArea);
+            // No filter toggle, always use threshold
+            const isVisible = (area >= cutoffArea);
 
             if (isVisible) {
                 card.style.display = '';
@@ -338,7 +375,6 @@ const App = {
         this.ui.downloadAllBtn.innerHTML = count > 0
             ? `<i class="fa-solid fa-download"></i> Download Selected (${count})`
             : `<i class="fa-solid fa-file-zipper"></i> Download All`;
-
         if (this.ui.trashBtn) {
             this.ui.trashBtn.style.opacity = count > 0 ? '1' : '0.5';
             this.ui.trashBtn.style.pointerEvents = count > 0 ? 'auto' : 'none';
@@ -359,9 +395,8 @@ const App = {
         if (this.state.selectedIndices.size > 0) {
             targets = this.state.images.filter((_, i) => this.state.selectedIndices.has(i));
         } else {
-            // Visible only (Exclude deleted & filtered)
             const visibleCards = Array.from(this.ui.gallery.children).filter(c => c.style.display !== 'none');
-            const visibleIndices = visibleCards.map(c => parseInt(c.dataset.index));
+            const visibleIndices = visibleCards.map(c => parseInt(c.dataset.id));
             targets = visibleIndices.map(idx => this.state.images[idx]);
         }
 
