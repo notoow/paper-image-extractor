@@ -56,15 +56,16 @@ body.has-results {
 /* Neumorphic Card (The Search Box) */
 .search-box {
     background: var(--bg-color);
-    padding: 3rem 3rem 1rem 3rem;
-    /* Highly optimized padding */
+    /* Balanced Padding: Top and Bottom equal to frame the content centered */
+    padding: 3rem;
     border-radius: var(--radius-main);
     box-shadow:
         9px 9px 16px var(--shadow-dark),
         -9px -9px 16px var(--shadow-light);
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
+    gap: 0;
+    /* Gap handled by margins for precise control */
     max-width: 650px;
     margin: 0 auto;
     transition: all 0.3s ease;
@@ -110,7 +111,7 @@ input::placeholder {
     color: var(--text-light);
 }
 
-/* Neumorphic Button (Convex/Extruded) */
+/* Neumorphic Button (Convex/Extruded) - Main Extract Button */
 button {
     border: none;
     background-color: var(--bg-color);
@@ -150,9 +151,62 @@ button:disabled {
     box-shadow: none;
 }
 
+/* --- Action Buttons (Upload & Coffee) --- */
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-top: 1.8rem;
+    /* Pushes buttons down to center of whitespace */
+    width: 100%;
+}
+
+.neumorphic-btn {
+    text-decoration: none;
+    font-size: 0.9rem;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 0.8rem 1.8rem;
+    border-radius: 50px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    background: var(--bg-color);
+
+    /* Soft Neumorphic Shadow */
+    box-shadow:
+        5px 5px 10px var(--shadow-dark),
+        -5px -5px 10px var(--shadow-light);
+}
+
+.neumorphic-btn:hover {
+    transform: translateY(-2px);
+    color: var(--accent);
+    /* Default hover color */
+    box-shadow:
+        7px 7px 14px var(--shadow-dark),
+        -7px -7px 14px var(--shadow-light);
+}
+
+.neumorphic-btn:active {
+    transform: translateY(1px);
+    box-shadow: inset 3px 3px 6px var(--shadow-dark),
+        inset -3px -3px 6px var(--shadow-light);
+}
+
+/* Coffee Button Specifics */
+.neumorphic-btn.coffee:hover {
+    color: #FF813F;
+    /* Orange for Coffee */
+}
+
+
 /* Status Message */
 .status-msg {
-    margin-top: 5px;
+    margin-top: 15px;
     min-height: 20px;
     font-size: 0.95rem;
     font-weight: 500;
@@ -164,56 +218,6 @@ button:disabled {
 
 .status-msg.success {
     color: #1dd1a1;
-}
-
-/* Upload PDF Area - Premium Style (Pille Shape) */
-.upload-area {
-    display: flex;
-    justify-content: center;
-    margin-top: 0;
-    /* No extra margin */
-    margin-bottom: 0.5rem;
-}
-
-#uploadLink {
-    font-size: 0.9rem;
-    color: var(--text-light);
-    cursor: pointer;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    padding: 0.6rem 1.5rem;
-    border-radius: 30px;
-
-    /* Subtle Neumorphism Outward State */
-    box-shadow:
-        3px 3px 6px var(--shadow-dark),
-        -3px -3px 6px var(--shadow-light);
-
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 500;
-}
-
-#uploadLink::before {
-    content: '\f093';
-    /* fa-upload */
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-}
-
-#uploadLink:hover {
-    color: var(--accent);
-    transform: translateY(-1px);
-    box-shadow:
-        4px 4px 8px var(--shadow-dark),
-        -4px -4px 8px var(--shadow-light);
-}
-
-#uploadLink:active {
-    transform: translateY(1px);
-    box-shadow: inset 2px 2px 5px var(--shadow-dark),
-        inset -2px -2px 5px var(--shadow-light);
 }
 
 
@@ -430,5 +434,16 @@ button:disabled {
 
     button {
         width: 100%;
+    }
+
+    /* Stack buttons on mobile */
+    .action-buttons {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .neumorphic-btn {
+        width: 100%;
+        justify-content: center;
     }
 }
