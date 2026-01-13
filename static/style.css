@@ -630,9 +630,19 @@ input[type=range]:active::-webkit-slider-thumb {
 }
 
 .trash-btn:active {
-    transform: translateY(1px);
-    box-shadow: inset 3px 3px 6px var(--shadow-dark),
-        inset -3px -3px 6px var(--shadow-light);
+    transform: scale(0.92);
+    /* Deep Press */
+    box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6),
+        inset -4px -4px 8px rgba(255, 255, 255, 0.8);
+    color: #e84118;
+}
+
+/* Apple-style Deletion Animation (Poof) */
+.img-card.deleting {
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transform: scale(0.1);
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* Neumorphic Loader */
