@@ -303,7 +303,7 @@ button:disabled {
     white-space: nowrap;
 }
 
-/* --- Filter Controls (Toggle + Slider) --- */
+/* --- Filter Controls (Slider Only) --- */
 .filter-controls {
     display: flex;
     align-items: center;
@@ -311,76 +311,20 @@ button:disabled {
     margin-top: 5px;
 }
 
-/* Toggle Styles */
-.filter-toggle-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    user-select: none;
-}
-
-.toggle-track {
-    width: 52px;
-    height: 28px;
-    background: var(--bg-color);
-    border-radius: 50px;
-    position: relative;
-    box-shadow: inset 3px 3px 6px var(--shadow-dark),
-        inset -3px -3px 6px var(--shadow-light);
-    transition: all 0.3s ease;
-}
-
-.toggle-thumb {
-    width: 22px;
-    height: 22px;
-    background: #e0e5ec;
-    border-radius: 50%;
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    box-shadow: 2px 2px 4px var(--shadow-dark),
-        -2px -2px 4px var(--shadow-light);
-    transition: all 0.3s cubic-bezier(0.5, 0, 0.1, 1.1);
-}
-
-.filter-toggle-wrapper.active .toggle-thumb {
-    left: 27px;
-    background: var(--accent);
-    box-shadow: 0 0 10px rgba(109, 93, 252, 0.5);
-}
-
-.toggle-label {
-    font-size: 0.9rem;
-    color: var(--text-light);
-    font-weight: 500;
-    transition: color 0.3s;
-}
-
-.filter-toggle-wrapper.active .toggle-label {
-    color: var(--text-main);
-}
-
-
-/* Slider Styles */
+/* Slider Style Updates (No Toggle opacity) */
 .slider-wrapper {
     display: flex;
     align-items: center;
     position: relative;
-    opacity: 0.5;
-    pointer-events: none;
-    transition: all 0.3s ease;
-}
-
-.filter-toggle-wrapper.active~.slider-wrapper {
     opacity: 1;
     pointer-events: auto;
+    transition: all 0.3s ease;
 }
 
 input[type=range] {
     -webkit-appearance: none;
     appearance: none;
-    width: 120px;
+    width: 140px;
     background: transparent;
 }
 
@@ -510,6 +454,46 @@ input[type=range]:active::-webkit-slider-thumb {
         inset -3px -3px 6px var(--shadow-light);
 }
 
+.download-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 700;
+    position: relative;
+}
+
+/* Trash Button */
+.trash-btn {
+    color: var(--text-light);
+    margin-left: 5px;
+    /* Slight separation */
+}
+
+.trash-btn:hover {
+    color: #ff4757;
+    /* Red Warning Color */
+    transform: translateY(-2px);
+    box-shadow:
+        7px 7px 12px var(--shadow-dark),
+        -7px -7px 12px var(--shadow-light);
+}
+
+.trash-btn:active {
+    transform: scale(0.92);
+    /* Deep Press */
+    box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6),
+        inset -4px -4px 8px rgba(255, 255, 255, 0.8);
+    color: #e84118;
+}
+
+/* Apple-style Deletion Animation (Poof) */
+.img-card.deleting {
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transform: scale(0.1);
+    opacity: 0;
+    pointer-events: none;
+}
+
+
 /* Checkbox for selection */
 .img-card {
     position: relative;
@@ -583,6 +567,7 @@ input[type=range]:active::-webkit-slider-thumb {
     transform: translateY(-5px);
 }
 
+/* Wrapper */
 .img-wrapper {
     border-radius: 15px;
     overflow: hidden;
@@ -611,38 +596,6 @@ input[type=range]:active::-webkit-slider-thumb {
     align-items: center;
     font-size: 0.85rem;
     padding: 0 5px;
-}
-
-/* Trash Button */
-.trash-btn {
-    color: var(--text-light);
-    margin-left: 5px;
-    /* Slight separation */
-}
-
-.trash-btn:hover {
-    color: #ff4757;
-    /* Red Warning Color */
-    transform: translateY(-2px);
-    box-shadow:
-        7px 7px 12px var(--shadow-dark),
-        -7px -7px 12px var(--shadow-light);
-}
-
-.trash-btn:active {
-    transform: scale(0.92);
-    /* Deep Press */
-    box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6),
-        inset -4px -4px 8px rgba(255, 255, 255, 0.8);
-    color: #e84118;
-}
-
-/* Apple-style Deletion Animation (Poof) */
-.img-card.deleting {
-    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-    transform: scale(0.1);
-    opacity: 0;
-    pointer-events: none;
 }
 
 /* Neumorphic Loader */

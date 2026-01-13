@@ -148,9 +148,13 @@ const App = {
     renderSuccess(data) {
         this.showStatus(`Successfully extracted ${data.image_count} images!`, 'success');
         this.state.images = data.images;
-        let safeTitle = data.title || "paper";
-        safeTitle = safeTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        this.state.title = safeTitle.substring(0, 50);
+
+        let rawTitle = data.title || "paper";
+        // SAFE FILENAME LOGIC (Updated to support Korean/Unicode)
+        // Replace ONLY filesystem-unsafe characters: < > : " / \ | ? *
+        let safeTitle = rawTitle.replace(/[<>:"/\\|?*]+/g, '_');
+        this.state.title = safeTitle.substring(0, 100); // Allow longer titles
+
         this.renderGallery(data.images);
         this.ui.resultSection.classList.add('visible');
         document.body.classList.add('has-results');
@@ -168,10 +172,6 @@ const App = {
         this.state.lastSelectedIndex = null; // Reset shift anchor
 
         // Sort Logic
-        // For correct range selection, we need to know the CURRENT display order.
-        // We will store "displayIndex" alongside originalIndex in DOM if needed, 
-        // or just rely on DOM order for range selection. DOM order is best for visual range.
-
         let displayImages = [...allImages];
         if (this.state.sortMode === 'asc') {
             displayImages.sort((a, b) => (a.width * a.height) - (b.width * b.height));
@@ -219,6 +219,7 @@ const App = {
             card.append(checkbox, wrapper, info);
             this.ui.gallery.appendChild(card);
 
+            // Card Click -> Smart Action fallback (e.g. padding click)
             card.addEventListener('click', (e) => {
                 this.handleSelectionClick(originalIndex, card, e.shiftKey);
             });
@@ -255,10 +256,6 @@ const App = {
     },
 
     toggleSelection(index, card) {
-        // We need to support toggle state for Range too? 
-        // For range, we usually select all. 
-        // Here we just toggle single item.
-
         if (this.state.selectedIndices.has(index)) {
             this.state.selectedIndices.delete(index);
             card.classList.remove('selected');
@@ -272,33 +269,21 @@ const App = {
     },
 
     selectRange(fromIds, toIds) {
-        // We need to find elements between these two IDs in the DOM order (Visual Order)
-        // NOT index order, because of Sorting.
-
         const cards = Array.from(this.ui.gallery.children);
-        // Filter out hidden (deleted or filtered) ones usually ranges respect visibility?
-        // Let's iterate all current DOM children (which are "sorted" correctly).
-
+        // Only visible cards participate in range selection naturally
         const visibleCards = cards.filter(c => c.style.display !== 'none');
 
         let startIndex = visibleCards.findIndex(c => parseInt(c.dataset.id) === fromIds);
         let endIndex = visibleCards.findIndex(c => parseInt(c.dataset.id) === toIds);
 
         if (startIndex === -1 || endIndex === -1) {
-            // Fallback if one is hidden/deleted (shouldn't happen for lastSelectedIndex but possible if filtered)
-            // If fallback fails, just select the target
-            const targetCard = cards.find(c => parseInt(c.dataset.id) === toIds);
+            // If anchor is invisible, fallback to single select
+            const targetCard = visibleCards.find(c => parseInt(c.dataset.id) === toIds);
             if (targetCard) this.toggleSelection(toIds, targetCard);
             return;
         }
 
         const [start, end] = [Math.min(startIndex, endIndex), Math.max(startIndex, endIndex)];
-
-        // Select all in range
-        // Standard UX: If Set is mixed, maybe Add to selection? Or Replace?
-        // Windows Explorer: Shift Click ADDS to selection range from Anchor.
-        // It does NOT toggle off things outside usually, or does it?
-        // Let's implement ADDITIVE Range Selection.
 
         for (let i = start; i <= end; i++) {
             const card = visibleCards[i];
@@ -318,7 +303,7 @@ const App = {
 
         const cards = this.ui.gallery.children;
         for (let card of cards) {
-            const idx = parseInt(card.dataset.id); // changed to dataset.id
+            const idx = parseInt(card.dataset.id);
             if (this.state.selectedIndices.has(idx)) {
                 card.classList.add('deleting');
                 card.classList.remove('selected');
@@ -328,7 +313,7 @@ const App = {
         setTimeout(() => {
             indicesToDelete.forEach(idx => this.state.deletedIndices.add(idx));
             this.state.selectedIndices.clear();
-            this.state.lastSelectedIndex = null; // Reset anchor on delete
+            this.state.lastSelectedIndex = null; // Reset anchor
             this.updateDownloadBtn();
             this.applyVisibilityFilter();
             for (let card of cards) {
@@ -357,7 +342,6 @@ const App = {
                 continue;
             }
             const area = parseInt(card.dataset.area);
-            // No filter toggle, always use threshold
             const isVisible = (area >= cutoffArea);
 
             if (isVisible) {
@@ -381,6 +365,7 @@ const App = {
         }
     },
 
+    // Support Unicode Filenames
     downloadSingleImage(index) {
         const target = this.state.images[index];
         const link = document.createElement('a');
@@ -415,6 +400,7 @@ const App = {
         if (!window.JSZip) { alert("JSZip library not loaded!"); return; }
 
         const zip = new JSZip();
+        // UTF-8 Title folder
         const folder = zip.folder(this.state.title);
 
         targets.forEach((img) => {

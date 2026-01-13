@@ -4,84 +4,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paper Prism - Free PDF Image Extractor & Downloader</title>
+    <title>Paper Prism - Free PDF Image Extractor</title>
     <meta name="description"
-        content="Extract high-quality images from PDF papers instantly. Free online tool for researchers. Supports DOI input & direct PDF upload. best PDF image extractor.">
-    <meta name="keywords"
-        content="pdf image extractor, extract images from pdf, save images from pdf, doi to images, research paper images, free online tool">
+        content="Extract high-quality images from PDF papers instantly. Free online tool for researchers. Supports DOI input & direct PDF upload.">
+    <meta name="keywords" content="pdf image extractor, extract images from pdf, save images from pdf, doi to images">
+
+    <!-- Fonts: Outfit for Modern Clean Look -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=8">
+
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- JSZip & FileSaver -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <link rel="stylesheet" href="static/style.css?v=11">
 </head>
 
 <body>
-
-    <main class="container">
+    <div class="container">
+        <!-- Header -->
         <header class="header">
             <h1>Paper Prism</h1>
-            <p>Extract Images from PDF Papers Instantly</p>
+            <p>Extract every image from any paper, instantly.</p>
         </header>
 
-        <!-- Search Box -->
+        <!-- Main Search Box (Neumorphic) -->
         <div class="search-box">
             <div class="input-group">
-                <input type="text" id="doiInput" placeholder="Paste DOI here..." autocomplete="off">
+                <input type="text" id="doiInput" placeholder="Paste DOI (e.g., 10.1038/s41586-023-06288-x)"
+                    autocomplete="off">
                 <button id="extractBtn">
-                    <span id="btnText"><i class="fa-solid fa-cloud-arrow-down"></i> Extract</span>
+                    <span id="btnText">Extract Images</span>
                     <div class="spinner" id="btnSpinner"></div>
                 </button>
             </div>
 
-            <!-- Action Buttons Row (Centered in the whitespace) -->
-            <div class="action-buttons">
-                <!-- Upload PDF Button -->
-                <div class="neumorphic-btn" id="uploadLink">
-                    <i class="fa-solid fa-file-arrow-up"></i> Upload PDF
-                </div>
+            <div class="status-msg" id="statusMsg"></div>
 
-                <!-- Coffee Button -->
-                <a href="https://buymeacoffee.com/notoow" target="_blank" class="neumorphic-btn coffee">
-                    <i class="fa-solid fa-mug-hot"></i> Coffee
-                </a>
+            <!-- Upload Option -->
+            <div class="upload-area">
+                <span style="color: var(--text-light); font-size: 0.9rem;">or </span>
+                <span id="uploadLink" class="upload-link">upload PDF manually</span>
+                <input type="file" id="pdfUploadInput" accept=".pdf" style="display: none;">
             </div>
-
-            <!-- Hidden Input -->
-            <input type="file" id="pdfUploadInput" accept=".pdf" style="display: none;">
-
-            <p class="status-msg" id="statusMsg"></p>
         </div>
 
-        <section id="resultSection" class="result-section">
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <a href="https://github.com/notoow/paper-image-extractor" target="_blank" class="neumorphic-btn">
+                <i class="fa-brands fa-github"></i> Star on GitHub
+            </a>
+            <a href="https://buymeacoffee.com/notoo" target="_blank" class="neumorphic-btn coffee">
+                <i class="fa-solid fa-mug-hot"></i> Buy me a coffee
+            </a>
+        </div>
+
+        <!-- Result Section -->
+        <div class="result-section" id="resultSection">
             <div class="result-header">
                 <div class="header-left">
-                    <h2>Extracted Content (<span id="imgCount">0</span>)</h2>
+                    <h2>Extracted Images (<span id="imgCount">0</span>)</h2>
 
-                    <!-- Neumorphic Toggle -->
+                    <!-- Filter Controls -->
                     <div class="filter-controls">
-                        <div class="filter-toggle-wrapper" id="filterToggle" title="Toggle Small Image Filter">
-                            <div class="toggle-track">
-                                <div class="toggle-thumb"></div>
-                            </div>
-                            <span class="toggle-label">Hide Small</span>
-                        </div>
-
-                        <!-- Neumorphic Slider (Visible when Toggle is ON) -->
-                        <div class="slider-wrapper" id="sliderWrapper">
-                            <input type="range" id="sizeSlider" min="0" max="95" step="5" value="20">
-                            <div class="slider-tooltip" id="sliderTooltip">Bottom 20% Hidden</div>
+                        <!-- Slider Only (Toggle Removed) -->
+                        <div class="slider-wrapper">
+                            <div class="slider-tooltip" id="sliderTooltip">Hide Bottom 20%</div>
+                            <input type="range" id="sizeSlider" min="0" max="95" value="20" step="5">
                         </div>
                     </div>
                 </div>
 
-                <div class="header-right" style="display:flex; gap:15px; align-items:center;">
-                    <!-- Smart Sort Button -->
-                    <button id="sortBtn" class="neumorphic-icon-btn" title="Change Sort Order">
+                <div class="header-right" style="display: flex; gap: 15px; align-items: center;">
+                    <!-- Sort Button -->
+                    <button id="sortBtn" class="neumorphic-icon-btn" title="Sort Order">
                         <i class="fa-solid fa-arrow-down-1-9"></i>
                     </button>
-
+                    <!-- Download All Button -->
                     <button id="downloadAllBtn" class="download-all-btn">
                         <i class="fa-solid fa-file-zipper"></i> Download All
                     </button>
@@ -94,12 +97,10 @@
             <div class="gallery" id="gallery">
                 <!-- Images injected here -->
             </div>
-        </section>
-    </main>
+        </div>
+    </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <script src="app.js?v=6"></script>
+    <script src="static/app.js?v=11"></script>
 </body>
 
 </html>
