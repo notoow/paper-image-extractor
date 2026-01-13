@@ -118,7 +118,7 @@ const App = {
             this.handleResponse(response, data);
 
         } catch (error) {
-            this.showStatus('Network error occurred.', 'error');
+            this.showErrorWithRescueLink('Network error or timeout.');
             console.error(error);
         } finally {
             this.setLoading(false);
@@ -158,15 +158,36 @@ const App = {
     },
 
     handleResponse(response, data) {
-        if (response.ok || data.status === 'manual_link') {
-            if (data.status === 'success') {
-                this.renderSuccess(data);
-            } else if (data.status === 'manual_link') {
-                this.renderManualLink(data);
-            }
+        if (response.ok && data.status === 'success') {
+            this.renderSuccess(data);
+        } else if (data && data.status === 'manual_link') {
+            this.renderManualLink(data);
         } else {
-            this.showStatus(data.detail || 'Failed to process.', 'error');
+            // Smart Error: Show message + Rescue Link if DOI is present
+            const errorMsg = data.detail || 'Cloudflare blocked or PDF not found.';
+            this.showErrorWithRescueLink(errorMsg);
         }
+    },
+
+    showErrorWithRescueLink(msg) {
+        const doi = this.ui.doiInput.value.trim();
+        let html = `<i class="fa-solid fa-triangle-exclamation"></i> ${msg}`;
+
+        // If we have a DOI, append the rescue link
+        if (doi) {
+            html += `<br><div style="margin-top:10px;">
+                <a href="https://doi.org/${doi}" target="_blank" class="neumorphic-btn" style="display:inline-flex; font-size:0.85rem; padding:0.5rem 1rem;">
+                    <i class="fa-solid fa-external-link-alt"></i> Open Publisher Site
+                </a>
+            </div>
+            <div style="font-size: 0.8em; color: gray; margin-top:5px;">Download PDF there and drag it here!</div>`;
+        }
+
+        this.ui.statusMsg.innerHTML = html;
+        this.ui.statusMsg.className = 'status-msg error';
+
+        // Ensure upload link is visible
+        if (this.ui.uploadArea) this.ui.uploadArea.style.display = 'block';
     },
 
     renderSuccess(data) {
