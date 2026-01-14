@@ -23,16 +23,42 @@ app.add_middleware(
 
 os.makedirs("static", exist_ok=True)
 
+import sqlite3
+
+# --- Database Setup (SQLite) ---
+DB_FILE = "paper_war.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS scores
+                 (country TEXT PRIMARY KEY, score INTEGER)''')
+    conn.commit()
+    conn.close()
+
+# Initialize DB immediately
+init_db()
+
 # --- WebSocket & Chat Manager ---
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
-        self.leaderboard: Dict[str, int] = {} 
+        # We don't need self.leaderboard cache if we query DB, 
+        # but for performance let's keep it and sync.
+        self.leaderboard: Dict[str, int] = self._load_leaderboard()
+
+    def _load_leaderboard(self) -> Dict[str, int]:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute("SELECT country, score FROM scores")
+        data = {row[0]: row[1] for row in c.fetchall()}
+        conn.close()
+        return data
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        # Send current leaderboard on connect
+        # Send current leaderboard
         await websocket.send_json({"type": "init", "leaderboard": self.leaderboard})
 
     def disconnect(self, websocket: WebSocket):
@@ -40,15 +66,39 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, message: dict):
+        # Clean up dead connections during broadcast
+        to_remove = []
         for connection in self.active_connections:
             try:
                 await connection.send_json(message)
             except:
-                pass
+                to_remove.append(connection)
+        
+        for conn in to_remove:
+            if conn in self.active_connections:
+                self.active_connections.remove(conn)
                 
     def update_score(self, country: str):
         if not country: return
-        self.leaderboard[country] = self.leaderboard.get(country, 0) + 1
+        
+        # 1. Update DB (Persistent)
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        # Upsert Logic
+        c.execute("""
+            INSERT INTO scores (country, score) VALUES (?, 1)
+            ON CONFLICT(country) DO UPDATE SET score = score + 1
+        """, (country,))
+        conn.commit()
+        
+        # 2. Update Memory (For fast read)
+        # Fetch updated score to be sure
+        c.execute("SELECT score FROM scores WHERE country = ?", (country,))
+        row = c.fetchone()
+        if row:
+            self.leaderboard[country] = row[0]
+        
+        conn.close()
 
 manager = ConnectionManager()
 
