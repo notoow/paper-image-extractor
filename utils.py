@@ -140,8 +140,27 @@ def get_pdf_from_scihub_advanced(doi: str):
         except Exception as e:
             continue
     
-    # 2. Try OA Redirect (Fallback)
-    # logic omitted for brevity as it was complex in main.py, but essential parts are above.
-    # To keep it completely SSOT, this function should handle everything related to fetching.
-    
-    return None, "Cloudflare blocked or PDF not found. Please try uploading the PDF manually."
+    # 2. Try Open Access (Unpaywall API) - Fallback
+    print("Sci-Hub failed or not found. Trying Unpaywall API...")
+    try:
+        oa_api_url = f"https://api.unpaywall.org/v2/{clean_doi}?email=unpaywall@impactstory.org"
+        oa_res = requests.get(oa_api_url, timeout=10)
+        
+        if oa_res.status_code == 200:
+            data = oa_res.json()
+            if data.get('is_oa') and data.get('best_oa_location'):
+                pdf_oa_url = data['best_oa_location'].get('url_for_pdf') or data['best_oa_location'].get('url')
+                
+                if pdf_oa_url:
+                    print(f"Found OA PDF URL: {pdf_oa_url}")
+                    try:
+                        pdf_res = requests.get(pdf_oa_url, headers=headers, timeout=30, verify=False)
+                        if pdf_res.status_code == 200 and b'%PDF' in pdf_res.content[:50]:
+                            paper_title = sanitize_filename(data.get('title', 'open_access_paper'))
+                            return pdf_res.content, paper_title
+                    except Exception as e:
+                        print(f"OA Download failed: {e}")
+    except Exception as e:
+         print(f"Unpaywall Error: {e}")
+
+    return None, "PDF not found in Sci-Hub or Open Access sources. Please upload manually."
