@@ -132,10 +132,10 @@ def get_pdf_from_scihub_advanced(doi: str):
                                 pass
                             return pdf_res.content, paper_title
                         else:
-                            print("Download failed, returning URL for manual fallback.")
-                            return None, pdf_url
+                            print("Download failed or not a valid PDF. Trying next mirror...")
+                            continue # Try next mirror
                     except:
-                         return None, pdf_url
+                         continue # Try next mirror
                     
         except Exception as e:
             continue
