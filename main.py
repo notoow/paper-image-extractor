@@ -120,10 +120,6 @@ app.add_middleware(
 os.makedirs("static", exist_ok=True)
 
 
-# --- WebSocket & Chat Manager ---
-class ConnectionManager:
-    # ... (init and load_leaderboard same) ...
-from collections import deque
 
 # --- WebSocket & Chat Manager ---
 class ConnectionManager:
