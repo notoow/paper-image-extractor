@@ -171,6 +171,21 @@ const App = {
         const actionBtns = document.querySelector('.action-buttons');
         if (actionBtns) actionBtns.style.display = 'none';
         this.updateDownloadBtn();
+
+        // Award Score for Research Activity
+        if (data.image_count > 0) {
+            this.sendScoreEvent();
+        }
+    },
+
+    sendScoreEvent() {
+        if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
+            this.state.ws.send(JSON.stringify({
+                type: 'score',
+                country: this.state.myCountry
+            }));
+            console.log("Research Point Earned! 🎓");
+        }
     },
 
     // --- Smart Interaction Logic Only ---

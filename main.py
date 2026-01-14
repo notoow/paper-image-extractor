@@ -273,9 +273,7 @@ async def websocket_endpoint(websocket: WebSocket):
             if msg_type == "chat":
                 msg = data.get("msg", "").strip()
                 if msg:
-                    # Update Score on chat (Activity)
-                    manager.update_score(country)
-                    # Broadcast
+                    # Broadcast chat only (Score updated via 'score' type)
                     await manager.broadcast({
                         "type": "chat",
                         "country": country,
