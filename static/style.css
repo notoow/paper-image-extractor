@@ -913,4 +913,50 @@ input[type=range]:active::-webkit-slider-thumb {
     padding: 0;
     border-radius: 50%;
     /* Circle btn */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light);
+    border: none;
+    background: var(--bg-color);
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#sendChatBtn:active {
+    box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
+}
+
+/* Chat Container - FIXED POSITIONING */
+.chat-container {
+    position: fixed !important;
+    bottom: 100px;
+    right: 30px;
+    width: 320px;
+    height: 500px;
+    max-height: 70vh;
+    background: var(--bg-color);
+    border-radius: 20px;
+    box-shadow: 10px 10px 20px var(--shadow-dark), -10px -10px 20px var(--shadow-light);
+    display: flex;
+    flex-direction: column;
+    z-index: 9998;
+
+    /* Initially Hidden */
+    transform: translateY(20px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.chat-container.open {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
 }
