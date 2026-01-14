@@ -180,6 +180,18 @@ const App = {
         this.state.selectedIndices.clear();
         this.state.lastSelectedIndex = null; // Reset shift anchor
 
+        // Handle Empty State
+        if (allImages.length === 0) {
+            this.ui.gallery.innerHTML = `
+                <div class="empty-state">
+                    <i class="fa-regular fa-file-image"></i>
+                    <h3>No Images Found</h3>
+                    <p>This PDF appears to have no extractable raster images.<br>It might contain only vector graphics or text.</p>
+                </div>
+            `;
+            return; // Stop rendering
+        }
+
         // Sort Logic
         let displayImages = [...allImages];
         if (this.state.sortMode === 'asc') {
