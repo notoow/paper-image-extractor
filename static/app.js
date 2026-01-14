@@ -521,8 +521,15 @@ const App = {
                     this.state.unread++;
                     this.updateChatBadge();
                 }
-            } else if (data.type === 'init' || data.type === 'update_score') {
+            } else if (data.type === 'init') {
                 this.renderLeaderboard(data.leaderboard);
+                // Restore History
+                if (data.history && Array.isArray(data.history)) {
+                    data.history.forEach(msg => this.renderChatMessage(msg));
+                }
+            } else if (data.type === 'update_score' || data.type === 'online_count') {
+                this.renderLeaderboard(data.leaderboard);
+                // Also update online count text if needed (simulated in board title or separate logic)
             }
         };
 
