@@ -26,7 +26,8 @@ os.makedirs("static", exist_ok=True)
 import sqlite3
 
 # --- Database Setup (SQLite) ---
-DB_FILE = "paper_war.db"
+# Use /tmp for write permissions on HF Spaces (Ephemeral but works)
+DB_FILE = "/tmp/paper_war.db"
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -41,32 +42,47 @@ init_db()
 
 # --- WebSocket & Chat Manager ---
 class ConnectionManager:
+    # ... (init and load_leaderboard same) ...
     def __init__(self):
         self.active_connections: List[WebSocket] = []
-        # We don't need self.leaderboard cache if we query DB, 
-        # but for performance let's keep it and sync.
         self.leaderboard: Dict[str, int] = self._load_leaderboard()
 
     def _load_leaderboard(self) -> Dict[str, int]:
-        conn = sqlite3.connect(DB_FILE)
-        c = conn.cursor()
-        c.execute("SELECT country, score FROM scores")
-        data = {row[0]: row[1] for row in c.fetchall()}
-        conn.close()
-        return data
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            c = conn.cursor()
+            c.execute("SELECT country, score FROM scores")
+            data = {row[0]: row[1] for row in c.fetchall()}
+            conn.close()
+            return data
+        except Exception:
+            return {}
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        # Send current leaderboard
-        await websocket.send_json({"type": "init", "leaderboard": self.leaderboard})
+        # Send init data with online count
+        await websocket.send_json({
+            "type": "init", 
+            "leaderboard": self.leaderboard,
+            "online": len(self.active_connections)
+        })
+        # Broadcast new user count
+        await self.broadcast_online_count()
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
+        # Don't await broadcast here to avoid error loop, just schedule it or ignore if loop closing
+        
+    async def broadcast_online_count(self):
+        await self.broadcast({
+            "type": "online_count", 
+            "count": len(self.active_connections)
+        })
 
     async def broadcast(self, message: dict):
-        # Clean up dead connections during broadcast
+        # ... (same cleanup logic) ...
         to_remove = []
         for connection in self.active_connections:
             try:
@@ -81,24 +97,24 @@ class ConnectionManager:
     def update_score(self, country: str):
         if not country: return
         
-        # 1. Update DB (Persistent)
-        conn = sqlite3.connect(DB_FILE)
-        c = conn.cursor()
-        # Upsert Logic
-        c.execute("""
-            INSERT INTO scores (country, score) VALUES (?, 1)
-            ON CONFLICT(country) DO UPDATE SET score = score + 1
-        """, (country,))
-        conn.commit()
-        
-        # 2. Update Memory (For fast read)
-        # Fetch updated score to be sure
-        c.execute("SELECT score FROM scores WHERE country = ?", (country,))
-        row = c.fetchone()
-        if row:
-            self.leaderboard[country] = row[0]
-        
-        conn.close()
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            c = conn.cursor()
+            c.execute("""
+                INSERT INTO scores (country, score) VALUES (?, 1)
+                ON CONFLICT(country) DO UPDATE SET score = score + 1
+            """, (country,))
+            conn.commit()
+            
+            c.execute("SELECT score FROM scores WHERE country = ?", (country,))
+            row = c.fetchone()
+            if row:
+                self.leaderboard[country] = row[0]
+            conn.close()
+        except Exception as e:
+            print(f"DB Error: {e}")
+
+    # ... (rest same) ...
 
 manager = ConnectionManager()
 
