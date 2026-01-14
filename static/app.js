@@ -638,17 +638,32 @@ const App = {
         const el = document.getElementById('leaderboard');
         if (!el) return;
         if (!board || Object.keys(board).length === 0) {
-            el.innerHTML = '<div class="rank-item">Waiting for players...</div>';
+            el.innerHTML = '<div class="rank-empty">No records yet.<br>Be the first! 🏆</div>';
             return;
         }
         const sorted = Object.entries(board).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
         el.innerHTML = sorted.map(([country, score], i) => {
             const flagHtml = this.getFlagEmoji(country);
-            const cls = i < 3 ? 'rank-item top' : 'rank-item';
-            // Align flag and text
-            return `<div class="${cls}" style="display:flex; align-items:center; gap:8px;">
-                        <span>${i + 1}.</span> ${flagHtml} <span>${score}</span>
-                    </div>`;
+            let rankDisplay = `<span class="rank-num">#${i + 1}</span>`;
+
+            // Medals for Top 3
+            if (i === 0) rankDisplay = '<span class="medal">🥇</span>';
+            if (i === 1) rankDisplay = '<span class="medal">🥈</span>';
+            if (i === 2) rankDisplay = '<span class="medal">🥉</span>';
+
+            const isTop = i < 3 ? 'top-rank' : '';
+
+            return `
+                <div class="rank-card ${isTop}" style="animation-delay: ${i * 0.1}s">
+                    <div class="rank-left">
+                        ${rankDisplay}
+                        ${flagHtml}
+                        <span class="country-code">${country}</span>
+                    </div>
+                    <div class="rank-score">${score.toLocaleString()}</div>
+                </div>
+            `;
         }).join('');
     }
 };

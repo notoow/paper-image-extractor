@@ -988,7 +988,88 @@ input[type=range]:active::-webkit-slider-thumb {
     background-color: #e74c3c;
 }
 
-/* Empty State */
+/* Leaderboard 2.0 */
+.rank-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.05);
+    /* Glass feel */
+    padding: 10px 14px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    transition: transform 0.2s, background 0.2s;
+    animation: slideIn 0.4s ease-out backwards;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rank-card:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.rank-card.top-rank {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    /* Subtle Gold border */
+    font-weight: 600;
+}
+
+.rank-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rank-num {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    width: 24px;
+    text-align: center;
+}
+
+.medal {
+    font-size: 1.2rem;
+    width: 24px;
+    text-align: center;
+}
+
+.country-code {
+    font-size: 0.9rem;
+    color: var(--text-main);
+    font-weight: 500;
+}
+
+.rank-score {
+    font-size: 1rem;
+    background: -webkit-linear-gradient(45deg, #0984e3, #6c5ce7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+}
+
+.rank-empty {
+    text-align: center;
+    color: var(--text-light);
+    padding: 20px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    opacity: 0.7;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Empty State (Existing) */
 .empty-state {
     grid-column: 1 / -1;
     /* Span full width grid */
