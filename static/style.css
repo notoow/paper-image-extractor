@@ -966,3 +966,24 @@ input[type=range]:active::-webkit-slider-thumb {
     visibility: visible;
     pointer-events: auto;
 }
+
+/* Connection Status Dot */
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #ccc;
+    margin-left: 8px;
+    display: inline-block;
+    vertical-align: middle;
+    transition: background-color 0.3s;
+}
+
+.status-dot.connected {
+    background-color: #2ecc71;
+    box-shadow: 0 0 5px #2ecc71;
+}
+
+.status-dot.disconnected {
+    background-color: #e74c3c;
+}
