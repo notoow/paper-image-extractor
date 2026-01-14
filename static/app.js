@@ -514,12 +514,18 @@ const App = {
         this.state.ws.onclose = () => {
             console.log("WS Closed, retrying...");
             this.updateConnectionStatus('disconnected');
+            // Show error in UI
+            const board = document.getElementById('leaderboard');
+            if (board) board.innerHTML = '<div class="rank-item skeleton" style="color:#e74c3c">Reconnecting... 📡</div>';
+
             setTimeout(() => this.connectWS(), 3000);
         };
 
         this.state.ws.onerror = (err) => {
             console.error("WS Error:", err);
             this.state.ws.close();
+            const board = document.getElementById('leaderboard');
+            if (board) board.innerHTML = '<div class="rank-item skeleton" style="color:#e74c3c">Connection Error! ⚠️</div>';
         };
     },
 
