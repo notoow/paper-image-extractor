@@ -85,11 +85,10 @@ def init_db():
 async def lifespan(app: FastAPI):
     # Startup
     try:
-        # init_db() # Temporarily disabled for debugging
-        # scheduler.add_job(sync_db_to_hub, 'interval', minutes=5)
-        # scheduler.start()
-        print("Scheduler disabled for debugging.")
-        pass
+        init_db()
+        scheduler.add_job(sync_db_to_hub, 'interval', minutes=5)
+        scheduler.start()
+        print("Scheduler started.")
     except Exception as e:
         print(f"Scheduler failed to start: {e}")
     
@@ -97,9 +96,8 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     try:
-        # scheduler.shutdown()
-        # sync_db_to_hub()
-        pass
+        scheduler.shutdown()
+        sync_db_to_hub()
     except:
         pass
 
