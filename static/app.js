@@ -496,7 +496,11 @@ const App = {
     toggleChat() {
         this.state.chatOpen = !this.state.chatOpen;
         const container = document.getElementById('chatContainer');
+        const toggleBtn = document.getElementById('chatToggle');
+
         if (container) container.classList.toggle('open', this.state.chatOpen);
+        if (toggleBtn) toggleBtn.classList.toggle('hidden', this.state.chatOpen);
+
         if (this.state.chatOpen) {
             this.state.unread = 0;
             this.updateChatBadge();
