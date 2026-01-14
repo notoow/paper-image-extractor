@@ -27,17 +27,20 @@ scheduler = BackgroundScheduler()
 def sync_db_to_hub():
     """Uploads the local DB to Hugging Face Hub"""
     if not HF_TOKEN:
-        print("Warning: HF_TOKEN not found. DB sync disabled.")
         return
     try:
         api = HfApi(token=HF_TOKEN)
-        # Check if repo exists, create if not (private by default for safety)
+        # Check/Create Repo
         try:
             api.repo_info(repo_id=REPO_ID, repo_type="dataset")
         except:
-            print(f"Creating new dataset: {REPO_ID}")
-            api.create_repo(repo_id=REPO_ID, repo_type="dataset", private=True, exist_ok=True)
-            
+            # Silent attempt to create
+            try:
+                api.create_repo(repo_id=REPO_ID, repo_type="dataset", private=True, exist_ok=True)
+            except Exception as e:
+                print(f"Repo create failed: {e}")
+                return
+
         print("Syncing DB to Hub...")
         api.upload_file(
             path_or_fileobj=DB_FILE,
@@ -46,12 +49,12 @@ def sync_db_to_hub():
             repo_type="dataset",
             commit_message="Sync DB: Auto-backup"
         )
-        print("DB Synced Successfully.")
     except Exception as e:
-        print(f"Sync failed: {e}")
+        print(f"Sync failed (Non-critical): {e}")
 
 def init_db():
-    """Initialize DB: Try download from Hub first, then creating local table"""
+    """Initialize DB"""
+    # 1. Try Restore
     if HF_TOKEN:
         try:
             print("Attempting to restore DB from Hub...")
@@ -59,37 +62,51 @@ def init_db():
                 repo_id=REPO_ID,
                 filename="paper_war.db",
                 repo_type="dataset",
-                local_dir="/tmp", # Downloads to /tmp/paper_war.db
+                local_dir="/tmp",
                 token=HF_TOKEN
             )
-            print("DB Restored from Hub.")
+            print("DB Restored.")
         except Exception as e:
-            print(f"No existing DB found on Hub or download failed: {e}. Starting fresh.")
+            print(f"Restore skipped: {e}")
 
-    # Create table if not exists (whether restored or new)
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS scores
-                 (country TEXT PRIMARY KEY, score INTEGER)''')
-    conn.commit()
-    conn.close()
+    # 2. Ensure Table Exists (Critical)
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS scores
+                     (country TEXT PRIMARY KEY, score INTEGER)''')
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"CRITICAL: DB Init Failed: {e}")
 
-# --- Lifespan Manager (Startup/Shutdown) ---
+# --- Lifespan ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    init_db()
-    # Sync every 5 minutes
-    scheduler.add_job(sync_db_to_hub, 'interval', minutes=5)
-    scheduler.start()
+    try:
+        init_db()
+        scheduler.add_job(sync_db_to_hub, 'interval', minutes=5)
+        scheduler.start()
+        print("Scheduler started.")
+    except Exception as e:
+        print(f"Scheduler failed to start: {e}")
+    
     yield
+    
     # Shutdown
-    print("Shutting down... Final sync.")
-    sync_db_to_hub()
-    scheduler.shutdown()
+    try:
+        scheduler.shutdown()
+        sync_db_to_hub()
+    except:
+        pass
 
-# Initialize App with Lifespan
+# Initialize App
 app = FastAPI(lifespan=lifespan)
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "db": os.path.exists(DB_FILE)}
 
 # CORS Config
 app.add_middleware(
