@@ -600,31 +600,32 @@ const App = {
         }
     },
 
+    // Helper: Return Flag Image HTML instead of Emoji (Windows fix)
+    getFlagEmoji(countryCode) {
+        if (!countryCode || countryCode === 'UN' || countryCode === 'UNKNOWN') return '🏳️';
+        const code = countryCode.toLowerCase();
+        return `<img src="https://flagcdn.com/w40/${code}.png" srcset="https://flagcdn.com/w80/${code}.png 2x" width="20" alt="${countryCode}" style="vertical-align: middle; border-radius: 2px;">`;
+    },
+
     renderChatMessage(data) {
         const msgs = document.getElementById('chatMessages');
         if (!msgs) return;
 
         const row = document.createElement('div');
         row.className = `msg-row`;
-        const flag = this.getFlagEmoji(data.country);
+        const flagHtml = this.getFlagEmoji(data.country); // Now returns <img>
 
         const safeMsg = data.msg.replace(/[&<>"']/g, function (m) {
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
         });
 
-        row.innerHTML = `<div class="msg-flag" title="${data.country}">${flag}</div><div class="msg-bubble">${safeMsg}</div>`;
+        row.innerHTML = `<div class="msg-flag" title="${data.country}">${flagHtml}</div><div class="msg-bubble">${safeMsg}</div>`;
         msgs.appendChild(row);
         msgs.scrollTop = msgs.scrollHeight;
     },
 
-    getFlagEmoji(countryCode) {
-        if (!countryCode || countryCode === 'UN' || countryCode === 'UNKNOWN') return '🏳️';
-        const codePoints = countryCode
-            .toUpperCase()
-            .split('')
-            .map(char => 127397 + char.charCodeAt());
-        return String.fromCodePoint(...codePoints);
-    },
+    // ... (Skipping getFlagEmoji definition since we replaced it above or defining it here if it was separate) ...
+    // Note: In Previous code getFlagEmoji was below renderChatMessage. I will replace both in one block to be safe.
 
     renderLeaderboard(board) {
         const el = document.getElementById('leaderboard');
@@ -635,9 +636,12 @@ const App = {
         }
         const sorted = Object.entries(board).sort((a, b) => b[1] - a[1]).slice(0, 5);
         el.innerHTML = sorted.map(([country, score], i) => {
-            const flag = this.getFlagEmoji(country);
+            const flagHtml = this.getFlagEmoji(country);
             const cls = i < 3 ? 'rank-item top' : 'rank-item';
-            return `<div class="${cls}">${i + 1}. ${flag} ${score}</div>`;
+            // Align flag and text
+            return `<div class="${cls}" style="display:flex; align-items:center; gap:8px;">
+                        <span>${i + 1}.</span> ${flagHtml} <span>${score}</span>
+                    </div>`;
         }).join('');
     }
 };
