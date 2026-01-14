@@ -129,18 +129,22 @@
     <div class="chat-container" id="chatContainer">
         <div class="chat-header">
             <div class="header-title">
-                <i class="fa-solid fa-earth-americas"></i> Global Chat
+                <i class="fa-solid fa-earth-americas"></i> Global Lounge
+                <span id="connectionStatus" class="status-dot disconnected" title="Disconnected"></span>
             </div>
             <button class="close-chat" id="closeChat"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
         <!-- Mini Leaderboard -->
         <div class="chat-rank" id="leaderboard">
-            <div class="rank-item skeleton">Waiting for players...</div>
+            <div class="rank-item skeleton">Connecting...</div>
         </div>
 
         <div class="chat-messages" id="chatMessages">
-            <div class="system-msg">Welcome to Paper War! 🏳️<br>Represent your country!</div>
+            <div class="system-msg">
+                Who's researching right now? 👀<br>
+                Chat to boost your country's rank! 🏆
+            </div>
         </div>
 
         <div class="chat-input-area">

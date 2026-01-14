@@ -475,7 +475,16 @@ const App = {
     connectWS() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
+        console.log("Connecting to WS:", wsUrl);
+
         this.state.ws = new WebSocket(wsUrl);
+
+        this.updateConnectionStatus('connecting');
+
+        this.state.ws.onopen = () => {
+            console.log("WS Connected");
+            this.updateConnectionStatus('connected');
+        };
 
         this.state.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
@@ -490,7 +499,34 @@ const App = {
             }
         };
 
-        this.state.ws.onclose = () => { setTimeout(() => this.connectWS(), 3000); };
+        this.state.ws.onclose = () => {
+            console.log("WS Closed, retrying...");
+            this.updateConnectionStatus('disconnected');
+            setTimeout(() => this.connectWS(), 3000);
+        };
+
+        this.state.ws.onerror = (err) => {
+            console.error("WS Error:", err);
+            this.state.ws.close();
+        };
+    },
+
+    updateConnectionStatus(status) {
+        const dot = document.getElementById('connectionStatus');
+        const input = document.getElementById('chatInput');
+        const btn = document.getElementById('sendChatBtn');
+
+        if (dot) {
+            dot.className = 'status-dot ' + (status === 'connected' ? 'connected' : 'disconnected');
+            dot.title = status;
+        }
+
+        // Disable input if disconnected
+        if (input) input.disabled = (status !== 'connected');
+        if (btn) {
+            btn.style.opacity = (status === 'connected') ? '1' : '0.5';
+            btn.style.pointerEvents = (status === 'connected') ? 'auto' : 'none';
+        }
     },
 
     toggleChat() {
