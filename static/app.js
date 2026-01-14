@@ -440,6 +440,132 @@ const App = {
         this.updateDownloadBtn();
         const actionBtns = document.querySelector('.action-buttons');
         if (actionBtns) actionBtns.style.display = 'flex';
+    },
+
+    // --- Chat Logic ---
+    async initChat() {
+        try {
+            const res = await fetch('https://ipapi.co/json/');
+            const data = await res.json();
+            if (data.country_code) this.state.myCountry = data.country_code;
+        } catch (e) { console.warn('GeoIP failed'); }
+
+        const toggle = document.getElementById('chatToggle');
+        const close = document.getElementById('closeChat');
+        const sendBtn = document.getElementById('sendChatBtn');
+        const input = document.getElementById('chatInput');
+
+        if (toggle) toggle.addEventListener('click', () => this.toggleChat());
+        if (close) close.addEventListener('click', () => this.toggleChat());
+
+        if (sendBtn && input) {
+            const send = () => {
+                const msg = input.value.trim();
+                if (!msg) return;
+                this.sendChatMessage(msg);
+                input.value = '';
+                input.focus();
+            };
+            sendBtn.addEventListener('click', send);
+            input.addEventListener('keypress', (e) => { if (e.key === 'Enter') send(); });
+        }
+        this.connectWS();
+    },
+
+    connectWS() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        this.state.ws = new WebSocket(wsUrl);
+
+        this.state.ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'chat') {
+                this.renderChatMessage(data);
+                if (!this.state.chatOpen) {
+                    this.state.unread++;
+                    this.updateChatBadge();
+                }
+            } else if (data.type === 'init' || data.type === 'update_score') {
+                this.renderLeaderboard(data.leaderboard);
+            }
+        };
+
+        this.state.ws.onclose = () => { setTimeout(() => this.connectWS(), 3000); };
+    },
+
+    toggleChat() {
+        this.state.chatOpen = !this.state.chatOpen;
+        const container = document.getElementById('chatContainer');
+        if (container) container.classList.toggle('open', this.state.chatOpen);
+        if (this.state.chatOpen) {
+            this.state.unread = 0;
+            this.updateChatBadge();
+            const msgs = document.getElementById('chatMessages');
+            if (msgs) msgs.scrollTop = msgs.scrollHeight;
+            document.getElementById('chatInput')?.focus();
+        }
+    },
+
+    updateChatBadge() {
+        const badge = document.getElementById('chatBadge');
+        if (!badge) return;
+        if (this.state.unread > 0) {
+            badge.textContent = this.state.unread > 99 ? '99+' : this.state.unread;
+            badge.classList.add('visible');
+        } else {
+            badge.classList.remove('visible');
+        }
+    },
+
+    sendChatMessage(msg) {
+        if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
+            this.state.ws.send(JSON.stringify({
+                type: 'chat',
+                country: this.state.myCountry,
+                msg: msg
+            }));
+        }
+    },
+
+    renderChatMessage(data) {
+        const msgs = document.getElementById('chatMessages');
+        if (!msgs) return;
+
+        const row = document.createElement('div');
+        row.className = `msg-row`;
+        const flag = this.getFlagEmoji(data.country);
+
+        const safeMsg = data.msg.replace(/[&<>"']/g, function (m) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+        });
+
+        row.innerHTML = `<div class="msg-flag" title="${data.country}">${flag}</div><div class="msg-bubble">${safeMsg}</div>`;
+        msgs.appendChild(row);
+        msgs.scrollTop = msgs.scrollHeight;
+    },
+
+    getFlagEmoji(countryCode) {
+        if (!countryCode || countryCode === 'UN' || countryCode === 'UNKNOWN') return '🏳️';
+        const codePoints = countryCode
+            .toUpperCase()
+            .split('')
+            .map(char => 127397 + char.charCodeAt());
+        return String.fromCodePoint(...codePoints);
+    },
+
+    renderLeaderboard(board) {
+        const el = document.getElementById('leaderboard');
+        if (!el) return;
+        if (!board || Object.keys(board).length === 0) {
+            el.innerHTML = '<div class="rank-item">Waiting for players...</div>';
+            return;
+        }
+        const sorted = Object.entries(board).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        el.innerHTML = sorted.map(([country, score], i) => {
+            const flag = this.getFlagEmoji(country);
+            const cls = i < 3 ? 'rank-item top' : 'rank-item';
+            return `<div class="${cls}">${i + 1}. ${flag} ${score}</div>`;
+        }).join('');
     }
 };
 document.addEventListener('DOMContentLoaded', () => App.init());
