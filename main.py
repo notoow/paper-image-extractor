@@ -10,7 +10,86 @@ from typing import List, Dict
 # Import business logic from utils (Seperation of Concerns)
 from utils import extract_images_from_pdf_bytes, get_pdf_from_scihub_advanced, sanitize_filename
 
-app = FastAPI()
+import sqlite3
+import os
+from contextlib import asynccontextmanager
+from apscheduler.schedulers.background import BackgroundScheduler
+from huggingface_hub import HfApi, hf_hub_download
+
+# --- Configuration ---
+DB_FILE = "/tmp/paper_war.db"
+REPO_ID = "notoow/paper-prism-db" # Dataset ID to store DB
+HF_TOKEN = os.environ.get("HF_TOKEN") # Auto-injected in Spaces
+
+scheduler = BackgroundScheduler()
+
+# --- Sync Logic ---
+def sync_db_to_hub():
+    """Uploads the local DB to Hugging Face Hub"""
+    if not HF_TOKEN:
+        print("Warning: HF_TOKEN not found. DB sync disabled.")
+        return
+    try:
+        api = HfApi(token=HF_TOKEN)
+        # Check if repo exists, create if not (private by default for safety)
+        try:
+            api.repo_info(repo_id=REPO_ID, repo_type="dataset")
+        except:
+            print(f"Creating new dataset: {REPO_ID}")
+            api.create_repo(repo_id=REPO_ID, repo_type="dataset", private=True, exist_ok=True)
+            
+        print("Syncing DB to Hub...")
+        api.upload_file(
+            path_or_fileobj=DB_FILE,
+            path_in_repo="paper_war.db",
+            repo_id=REPO_ID,
+            repo_type="dataset",
+            commit_message="Sync DB: Auto-backup"
+        )
+        print("DB Synced Successfully.")
+    except Exception as e:
+        print(f"Sync failed: {e}")
+
+def init_db():
+    """Initialize DB: Try download from Hub first, then creating local table"""
+    if HF_TOKEN:
+        try:
+            print("Attempting to restore DB from Hub...")
+            hf_hub_download(
+                repo_id=REPO_ID,
+                filename="paper_war.db",
+                repo_type="dataset",
+                local_dir="/tmp", # Downloads to /tmp/paper_war.db
+                token=HF_TOKEN
+            )
+            print("DB Restored from Hub.")
+        except Exception as e:
+            print(f"No existing DB found on Hub or download failed: {e}. Starting fresh.")
+
+    # Create table if not exists (whether restored or new)
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS scores
+                 (country TEXT PRIMARY KEY, score INTEGER)''')
+    conn.commit()
+    conn.close()
+
+# --- Lifespan Manager (Startup/Shutdown) ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    init_db()
+    # Sync every 5 minutes
+    scheduler.add_job(sync_db_to_hub, 'interval', minutes=5)
+    scheduler.start()
+    yield
+    # Shutdown
+    print("Shutting down... Final sync.")
+    sync_db_to_hub()
+    scheduler.shutdown()
+
+# Initialize App with Lifespan
+app = FastAPI(lifespan=lifespan)
 
 # CORS Config
 app.add_middleware(
@@ -23,28 +102,13 @@ app.add_middleware(
 
 os.makedirs("static", exist_ok=True)
 
-import sqlite3
-
-# --- Database Setup (SQLite) ---
-# Use /tmp for write permissions on HF Spaces (Ephemeral but works)
-DB_FILE = "/tmp/paper_war.db"
-
-def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS scores
-                 (country TEXT PRIMARY KEY, score INTEGER)''')
-    conn.commit()
-    conn.close()
-
-# Initialize DB immediately
-init_db()
 
 # --- WebSocket & Chat Manager ---
 class ConnectionManager:
     # ... (init and load_leaderboard same) ...
     def __init__(self):
         self.active_connections: List[WebSocket] = []
+        # DB is initialized in lifespan, safe to load
         self.leaderboard: Dict[str, int] = self._load_leaderboard()
 
     def _load_leaderboard(self) -> Dict[str, int]:
