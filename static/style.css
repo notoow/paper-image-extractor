@@ -931,7 +931,8 @@ input[type=range]:active::-webkit-slider-thumb {
 /* Chat Container - FIXED POSITIONING */
 .chat-container {
     position: fixed !important;
-    bottom: 100px;
+    bottom: 30px;
+    /* SAME AS BUTTON */
     right: 30px;
     width: 320px;
     height: 500px;
@@ -943,19 +944,24 @@ input[type=range]:active::-webkit-slider-thumb {
     flex-direction: column;
     z-index: 9998;
 
+    /* Animation: Grow from button */
+    transform-origin: bottom right;
+
     /* Initially Hidden */
-    transform: translateY(20px);
+    transform: scale(0);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
 
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Bouncy Animation */
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .chat-container.open {
-    transform: translateY(0);
+    transform: scale(1);
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
