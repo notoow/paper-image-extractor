@@ -123,10 +123,16 @@ os.makedirs("static", exist_ok=True)
 # --- WebSocket & Chat Manager ---
 class ConnectionManager:
     # ... (init and load_leaderboard same) ...
+from collections import deque
+
+# --- WebSocket & Chat Manager ---
+class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
         # DB is initialized in lifespan, safe to load
         self.leaderboard: Dict[str, int] = self._load_leaderboard()
+        # Keep last 50 chat messages in memory
+        self.chat_history = deque(maxlen=50)
 
     def _load_leaderboard(self) -> Dict[str, int]:
         try:
@@ -142,11 +148,12 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        # Send init data with online count
+        # Send init data with online count and history
         await websocket.send_json({
             "type": "init", 
             "leaderboard": self.leaderboard,
-            "online": len(self.active_connections)
+            "online": len(self.active_connections),
+            "history": list(self.chat_history)
         })
         # Broadcast new user count
         await self.broadcast_online_count()
@@ -163,7 +170,11 @@ class ConnectionManager:
         })
 
     async def broadcast(self, message: dict):
-        # ... (same cleanup logic) ...
+        # Save chat to history if it's a chat message
+        if message.get("type") == "chat":
+            self.chat_history.append(message)
+
+        # Clean up dead connections during broadcast
         to_remove = []
         for connection in self.active_connections:
             try:
