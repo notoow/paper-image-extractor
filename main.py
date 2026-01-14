@@ -121,6 +121,8 @@ os.makedirs("static", exist_ok=True)
 
 
 
+from collections import deque
+
 # --- WebSocket & Chat Manager ---
 class ConnectionManager:
     def __init__(self):
