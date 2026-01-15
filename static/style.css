@@ -1066,6 +1066,7 @@ input[type=range]:active::-webkit-slider-thumb {
     font-size: 1rem;
     background: -webkit-linear-gradient(45deg, #0984e3, #6c5ce7);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: 700;
 }
@@ -1262,4 +1263,278 @@ input[type=range]:active::-webkit-slider-thumb {
 .history-chip i {
     font-size: 0.8em;
     opacity: 0.7;
+}
+
+/* --- Version 2.0: Social Tabs & Trending Gallery --- */
+
+/* Tab Navigation Bar */
+.social-tabs {
+    display: flex;
+    padding: 10px 15px 0 15px;
+    background: rgba(255, 255, 255, 0.3);
+    border-bottom: 1px solid rgba(163, 177, 198, 0.2);
+    gap: 15px;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-light);
+    cursor: pointer;
+    position: relative;
+    box-shadow: none !important;
+    /* Override default button shadow */
+    min-width: unset;
+    min-height: unset;
+    transform: none !important;
+    transition: color 0.3s;
+}
+
+.tab-btn:hover {
+    color: var(--accent);
+    transform: none;
+}
+
+.tab-btn.active {
+    color: var(--accent);
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    /* Overlap border */
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--accent);
+    border-radius: 3px 3px 0 0;
+}
+
+/* Views Logic */
+.social-view {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    /* Fill remaining space */
+    overflow: hidden;
+}
+
+.social-view.active {
+    display: flex;
+    animation: fadeInView 0.3s ease;
+}
+
+@keyframes fadeInView {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Trending View Styles */
+.trending-filter {
+    display: flex;
+    gap: 8px;
+    padding: 10px 15px;
+    overflow-x: auto;
+    /* Hide scrollbar */
+    scrollbar-width: none;
+}
+
+.trending-filter::-webkit-scrollbar {
+    display: none;
+}
+
+.filter-chip {
+    padding: 5px 12px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.4);
+    font-size: 0.8rem;
+    color: var(--text-light);
+    cursor: pointer;
+    border: 1px solid transparent;
+    min-width: auto;
+    box-shadow: none;
+    /* Flat style for chips */
+    transition: all 0.2s;
+}
+
+.filter-chip:hover {
+    background: rgba(255, 255, 255, 0.8);
+    transform: translateY(-1px);
+}
+
+.filter-chip.active {
+    background: var(--accent);
+    color: white;
+    box-shadow: 2px 2px 5px rgba(109, 93, 252, 0.3);
+}
+
+/* Trending Grid */
+.trending-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 15px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    /* 2 Columns */
+    gap: 10px;
+    align-content: start;
+}
+
+.trending-item {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    /* Square thumbnails */
+    background: #fff;
+    box-shadow: 2px 2px 5px rgba(163, 177, 198, 0.3);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.trending-item:hover {
+    transform: translateY(-2px);
+}
+
+.trending-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    /* Or cover? contain better for paper figures */
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+/* Rank Badge */
+.trending-rank {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 700;
+    backdrop-filter: blur(2px);
+}
+
+.trending-rank.top-3 {
+    background: linear-gradient(135deg, #ffd700, #f1c40f);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Like Heart Overlay */
+.trending_like-btn {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    width: 30px;
+    height: 30px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    display: flex;
+    /* Flex to center icon */
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #ccc;
+    /* Default grey */
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    min-width: unset;
+    /* Override button generic */
+    padding: 0;
+}
+
+.trending_like-btn:hover {
+    transform: scale(1.1);
+    background: white;
+    color: #ff4757;
+}
+
+.trending_like-btn.liked {
+    color: #ff4757;
+    animation: heartPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes heartPop {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.4);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.like-count {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    font-size: 0.7rem;
+    color: rgba(0, 0, 0, 0.6);
+    font-weight: 600;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+
+/* Loading State */
+.loading-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--text-light);
+    margin-top: 50px;
+}
+
+/* Helper for Main Gallery Heart Button */
+.img-card .heart-action {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 30px;
+    /* Small clean button */
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #ccc;
+    /* Default grey */
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s;
+    z-index: 10;
+}
+
+.img-card .heart-action:hover {
+    transform: scale(1.1);
+    background: white;
+    color: #ff6b6b;
+}
+
+.img-card .heart-action.active {
+    color: #ff4757;
+    animation: heartPop 0.4s ease;
 }

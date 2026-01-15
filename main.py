@@ -417,6 +417,78 @@ async def like_image(
         print(f"Like Error: {e}")
         return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
 
+@app.post("/api/vote")
+async def vote_image(request: Request):
+    """Simple vote for existing image by ID (Trending Tab usage)"""
+    if not supabase:
+        return JSONResponse({"status": "error", "detail": "DB not connected"}, status_code=503)
+    
+    try:
+        data = await request.json()
+        img_id = data.get("id")
+        
+        if not img_id:
+             return JSONResponse({"status": "error", "detail": "ID required"}, status_code=400)
+             
+        # Increment Likes
+        # We need to fetch current likes first (or use an RPC if available, but simple select-update is safer for now)
+        res = supabase.table("images").select("likes").eq("id", img_id).execute()
+        if res.data:
+            new_likes = res.data[0]['likes'] + 1
+            supabase.table("images").update({"likes": new_likes}).eq("id", img_id).execute()
+            return {"status": "success", "likes": new_likes}
+        else:
+            return JSONResponse({"status": "error", "detail": "Image not found"}, status_code=404)
+            
+    except Exception as e:
+        print(f"Vote Error: {e}")
+        return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
+
+@app.get("/api/trending")
+async def get_trending(period: str = "all"):
+    """
+    Fetch trending images.
+    Period: 'all', 'year', 'month', 'week'
+    """
+    if not supabase:
+        return {"status": "error", "images": []}
+        
+    try:
+        query = supabase.table("images").select("*").order("likes", desc=True).limit(50)
+        
+        # Apply Time Filter
+        # Since 'created_at' is refreshed on 'bump', this acts as 'Active Since'
+        import datetime
+        now = datetime.datetime.utcnow()
+        
+        if period == "week":
+            date_threshold = now - datetime.timedelta(days=7)
+            query = query.gte("created_at", date_threshold.isoformat())
+        elif period == "month":
+            date_threshold = now - datetime.timedelta(days=30)
+            query = query.gte("created_at", date_threshold.isoformat())
+        elif period == "year":
+            date_threshold = now - datetime.timedelta(days=365)
+            query = query.gte("created_at", date_threshold.isoformat())
+            
+        res = query.execute()
+        
+        # Construct Public URLs
+        # Assuming bucket is 'paper_images' and public
+        # Using Supabase Project URL structure: {SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{PATH}
+        
+        images = []
+        for row in res.data:
+            public_url = f"{SUPABASE_URL}/storage/v1/object/public/paper_images/{row['storage_path']}"
+            row['url'] = public_url
+            images.append(row)
+            
+        return {"status": "success", "images": images}
+        
+    except Exception as e:
+        print(f"Trending Error: {e}")
+        return {"status": "error", "detail": str(e), "images": []}
+
 @app.post("/api/process")
 async def process_doi(request: Request):
     data = await request.json()
@@ -438,6 +510,8 @@ async def process_doi(request: Request):
         
         if result["status"] == "success":
             result["doi"] = doi # Echo DOI
+            # Restore PDF Preview Feature
+            result["pdf_base64"] = base64.b64encode(pdf_bytes).decode('utf-8')
             return result
         else:
             return JSONResponse(result, status_code=400)

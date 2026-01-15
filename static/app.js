@@ -32,12 +32,13 @@ const App = {
         resultSection: document.getElementById('resultSection'),
         imgCount: document.getElementById('imgCount'),
         downloadAllBtn: document.getElementById('downloadAllBtn'),
+        trashBtn: document.getElementById('trashBtn'),
+        pdfBtn: document.getElementById('pdfBtn'), // Static Ref
         gallery: document.getElementById('gallery'),
 
         sizeSlider: document.getElementById('sizeSlider'),
         sliderTooltip: document.getElementById('sliderTooltip'),
 
-        sortBtn: document.getElementById('sortBtn'),
         trashBtn: document.getElementById('trashBtn')
     },
 
@@ -217,37 +218,23 @@ const App = {
         }
 
         // Handle PDF Preview Button
-        const dlBtn = this.ui.downloadAllBtn;
-        if (dlBtn && dlBtn.parentElement) {
-            // Clear old PDF btn
-            const oldPdfBtn = dlBtn.parentElement.querySelector('.pdf-view-btn');
-            if (oldPdfBtn) oldPdfBtn.remove();
-
+        if (this.ui.pdfBtn) {
             if (data.pdf_base64) {
-                console.log("PDF Base64 received. Size:", data.pdf_base64.length);
                 try {
                     const byteArr = this.base64ToBytes(data.pdf_base64);
                     const blob = new Blob([byteArr], { type: 'application/pdf' });
                     const url = URL.createObjectURL(blob);
-                    console.log("PDF Blob URL created:", url);
 
-                    const pdfBtn = document.createElement('button');
-                    // Style: Match Sort Button
-                    pdfBtn.className = 'neumorphic-icon-btn pdf-view-btn';
-                    pdfBtn.style.display = 'inline-flex';
-
-                    // Icon Only
-                    pdfBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i>';
-                    pdfBtn.title = 'View Original PDF (Safe)';
-                    pdfBtn.onclick = () => window.open(url, '_blank');
-
-                    // Insert before Download All button
-                    dlBtn.parentElement.insertBefore(pdfBtn, dlBtn);
+                    this.ui.pdfBtn.style.display = 'inline-flex';
+                    this.ui.pdfBtn.onclick = () => window.open(url, '_blank');
+                    this.ui.pdfBtn.title = "View Original PDF";
                 } catch (e) {
-                    console.error("Failed to create PDF blob:", e);
+                    console.error("PDF Blob Error:", e);
+                    this.ui.pdfBtn.style.display = 'none';
                 }
             } else {
-                console.warn("No PDF Base64 data found in response.");
+                this.ui.pdfBtn.style.display = 'none';
+                // Fallback: If user provided DOI, link to DOI? No, stick to PDF button logic
             }
         }
     },
@@ -331,7 +318,21 @@ const App = {
             info.className = 'img-info';
             info.innerHTML = `<span>#${originalIndex + 1}</span> <span>${img.width}x${img.height}</span>`;
 
-            card.append(checkbox, wrapper, info);
+            // Heart Button (New)
+            const heartBtn = document.createElement('div');
+            heartBtn.className = 'heart-action';
+            heartBtn.innerHTML = '<i class="fa-solid fa-heart"></i>';
+            heartBtn.title = "Add to Hall of Fame";
+
+            heartBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // No select
+                if (heartBtn.classList.contains('active')) return; // Already liked
+
+                heartBtn.classList.add('active');
+                this.likeImageFromSearch(img); // Pass the image object directly
+            });
+
+            card.append(checkbox, heartBtn, wrapper, info);
             this.ui.gallery.appendChild(card);
 
             // Card Click -> Smart Action fallback (e.g. padding click)
@@ -575,7 +576,168 @@ const App = {
             sendBtn.addEventListener('click', send);
             input.addEventListener('keypress', (e) => { if (e.key === 'Enter') send(); });
         }
+
+        // Bind Social Tabs
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
+        });
+
+        // Bind Trending Filters
+        const filterChips = document.querySelectorAll('.filter-chip');
+        filterChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                // Update UI
+                filterChips.forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                // Fetch
+                this.fetchTrending(chip.dataset.period);
+            });
+        });
+
         this.connectWS();
+    },
+
+    // --- Social & Trending Logic ---
+
+    switchTab(tabName) {
+        // Update Buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        // Update Views
+        document.querySelectorAll('.social-view').forEach(view => {
+            view.classList.remove('active');
+        });
+        const targetView = document.getElementById(`view-${tabName}`);
+        if (targetView) targetView.classList.add('active');
+
+        // Logic
+        if (tabName === 'trending') {
+            // Load if empty
+            const grid = document.getElementById('trendingGrid');
+            if (grid && !grid.children.length || grid.querySelector('.loading-state')) {
+                this.fetchTrending('all');
+            }
+        }
+    },
+
+    async fetchTrending(period) {
+        const grid = document.getElementById('trendingGrid');
+        if (grid) grid.innerHTML = '<div class="loading-state"><div class="spinner" style="display:block; margin: 20px auto;"></div><p>Refining selection...</p></div>';
+
+        try {
+            const res = await fetch(`/api/trending?period=${period}`);
+            const data = await res.json();
+            if (data.status === 'success') {
+                this.renderTrending(data.images);
+            } else {
+                if (grid) grid.innerHTML = `<p style="text-align:center; padding:20px;">Failed to load.</p>`;
+            }
+        } catch (e) {
+            console.error(e);
+            if (grid) grid.innerHTML = `<p style="text-align:center; padding:20px;">Network error.</p>`;
+        }
+    },
+
+    renderTrending(images) {
+        const grid = document.getElementById('trendingGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        if (images.length === 0) {
+            grid.innerHTML = '<div class="loading-state"><p>No trending images yet.<br>Be the first to like one!</p></div>';
+            return;
+        }
+
+        images.forEach((img, i) => {
+            const item = document.createElement('div');
+            item.className = 'trending-item';
+
+            // Generate Rank Badge
+            let rankClass = '';
+            if (i < 3) rankClass = 'top-3';
+            const rankHtml = `<div class="trending-rank ${rankClass}">#${i + 1}</div>`;
+
+            // Like Button (Vote)
+            // Check cookie or local storage if already liked? (Simplification: just show)
+            const likeBtn = document.createElement('button');
+            likeBtn.className = 'trending_like-btn';
+            likeBtn.innerHTML = `<i class="fa-solid fa-heart"></i>`;
+            likeBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (likeBtn.classList.contains('liked')) return;
+                this.voteTrendingImage(img.id, likeBtn, countSpan);
+            };
+
+            const countSpan = document.createElement('span');
+            countSpan.className = 'like-count';
+            countSpan.textContent = img.likes;
+
+            // Image
+            // Use cached public URL or construct it
+            const imgUrl = img.url || img.base64; // Fallback? api/trending should return url
+
+            item.innerHTML = `
+                ${rankHtml}
+                <img src="${imgUrl}" loading="lazy" alt="Trending">
+            `;
+
+            item.appendChild(countSpan);
+            item.appendChild(likeBtn);
+
+            // Full Preview on Click
+            item.onclick = () => window.open(imgUrl, '_blank');
+
+            grid.appendChild(item);
+        });
+    },
+
+    async voteTrendingImage(id, btn, countSpan) {
+        try {
+            btn.classList.add('liked');
+            // Optimistic update
+            let current = parseInt(countSpan.textContent);
+            countSpan.textContent = current + 1;
+
+            await fetch('/api/vote', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id })
+            });
+            // Success
+        } catch (e) {
+            console.error("Vote failed", e);
+        }
+    },
+
+    async likeImageFromSearch(img) {
+        // Convert Base64 -> Blob -> File
+        try {
+            const fetchRes = await fetch(img.base64);
+            const blob = await fetchRes.blob();
+            const file = new File([blob], "image.png", { type: img.ext });
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('doi', this.ui.doiInput.value || 'manual_upload');
+            formData.append('country', this.state.myCountry);
+
+            const res = await fetch('/api/like', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            console.log("Like Result:", data);
+
+            // Show toast/confetti?
+            if (data.status === 'success') {
+                // Good
+            }
+        } catch (e) {
+            console.error("Like failed", e);
+        }
     },
 
     connectWS() {

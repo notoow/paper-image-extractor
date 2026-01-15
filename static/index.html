@@ -41,7 +41,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
     <!-- CSS -->
-    <link rel="stylesheet" href="/static/style.css?v=22">
+    <link rel="stylesheet" href="/static/style.css?v=2.2">
 </head>
 
 <body>
@@ -60,7 +60,6 @@
                 <button id="extractBtn">
                     <span id="btnText">Extract Images</span>
                     <div class="spinner" id="btnSpinner"></div>
-                </button>
                 </button>
             </div>
             <!-- Search History -->
@@ -107,6 +106,10 @@
                     <button id="sortBtn" class="neumorphic-icon-btn" title="Sort Order">
                         <i class="fa-solid fa-arrow-down-1-9"></i>
                     </button>
+                    <!-- PDF View Button (Hidden by default) -->
+                    <button id="pdfBtn" class="neumorphic-icon-btn" title="View Original PDF" style="display: none;">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </button>
                     <!-- Download All Button -->
                     <button id="downloadAllBtn" class="download-all-btn">
                         <i class="fa-solid fa-file-zipper"></i> Download All
@@ -132,32 +135,58 @@
     <div class="chat-container" id="chatContainer">
         <div class="chat-header">
             <div class="header-title">
-                <i class="fa-solid fa-earth-americas"></i> Global Lounge <span id="onlineCount"
+                <i class="fa-solid fa-earth-americas"></i> Social Hub <span id="onlineCount"
                     style="font-size: 0.8em; opacity: 0.8; margin-left: 5px;">(0)</span>
                 <span id="connectionStatus" class="status-dot disconnected" title="Disconnected"></span>
             </div>
             <button class="close-chat" id="closeChat"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
-        <!-- Mini Leaderboard -->
-        <div class="chat-rank" id="leaderboard">
-            <div class="rank-item skeleton">Connecting...</div>
+        <!-- Tabs -->
+        <div class="social-tabs">
+            <button class="tab-btn active" data-tab="chat">Live Chat</button>
+            <button class="tab-btn" data-tab="trending">Hall of Fame</button>
         </div>
 
-        <div class="chat-messages" id="chatMessages">
-            <div class="system-msg">
-                Who's researching right now? 👀<br>
-                Chat to boost your country's rank! 🏆
+        <!-- View: Chat -->
+        <div id="view-chat" class="social-view active">
+            <!-- Mini Leaderboard -->
+            <div class="chat-rank" id="leaderboard">
+                <div class="rank-item skeleton">Connecting...</div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="system-msg">
+                    Who's researching right now? 👀<br>
+                    Chat to boost your country's rank! 🏆
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Type a message..." maxlength="100">
+                <button id="sendChatBtn"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
 
-        <div class="chat-input-area">
-            <input type="text" id="chatInput" placeholder="Type a message..." maxlength="100">
-            <button id="sendChatBtn"><i class="fa-solid fa-paper-plane"></i></button>
+        <!-- View: Trending -->
+        <div id="view-trending" class="social-view">
+            <div class="trending-filter">
+                <button class="filter-chip active" data-period="all">All</button>
+                <button class="filter-chip" data-period="year">Year</button>
+                <button class="filter-chip" data-period="month">Month</button>
+                <button class="filter-chip" data-period="week">Week</button>
+            </div>
+            <div class="trending-grid" id="trendingGrid">
+                <!-- JS Injected -->
+                <div class="loading-state">
+                    <div class="spinner" style="display:block; margin: 20px auto;"></div>
+                    <p>Loading best shots...</p>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script src="/static/app.js?v=22"></script>
+    <script src="/static/app.js?v=2.2"></script>
 </body>
 
 </html>
