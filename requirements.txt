@@ -2,14 +2,10 @@ fastapi
 uvicorn[standard]
 requests
 beautifulsoup4
-requests
 pymupdf
-# fitz is included in pymupdf
 python-multipart
-# schedule (using apscheduler mostly, but keep if needed)
 schedule
 apscheduler
 huggingface_hub
-supabase>=2.0.0
-apscheduler
 websockets
+supabase>=2.0.0
