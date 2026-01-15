@@ -678,14 +678,31 @@ const App = {
     renderLeaderboard(board) {
         const el = document.getElementById('leaderboard');
         if (!el) return;
-        if (!board || Object.keys(board).length === 0) {
+
+        // Handle Array (New) vs Object (Old Fallback)
+        let data = [];
+        if (Array.isArray(board)) {
+            data = board;
+        } else if (board && typeof board === 'object') {
+            data = Object.entries(board).map(([c, s]) => ({ country: c, score: s, chats: 0 }));
+            data.sort((a, b) => b.score - a.score);
+        }
+
+        if (data.length === 0) {
             el.innerHTML = '<div class="rank-empty">No records yet.<br>Be the first! 🏆</div>';
             return;
         }
-        const sorted = Object.entries(board).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-        el.innerHTML = sorted.map(([country, score], i) => {
-            const flagHtml = this.getFlagEmoji(country);
+        // Render all (CSS handles scroll)
+        el.innerHTML = data.map((item, i) => {
+            const country = item.country;
+            const score = item.score || 0;
+            const chats = item.chats || 0;
+
+            // Use FlagCDN for consistent look
+            const flagUrl = `https://flagcdn.com/24x18/${country.toLowerCase()}.png`;
+            const flagHtml = `<img src="${flagUrl}" alt="${country}" style="width:20px; border-radius:2px; vertical-align:middle;">`;
+
             let rankDisplay = `<span class="rank-num">#${i + 1}</span>`;
 
             // Medals for Top 3
@@ -696,13 +713,16 @@ const App = {
             const isTop = i < 3 ? 'top-rank' : '';
 
             return `
-                <div class="rank-card ${isTop}" style="animation-delay: ${i * 0.1}s">
+                <div class="rank-card ${isTop}" style="animation-delay: ${Math.min(i * 0.05, 1)}s">
                     <div class="rank-left">
                         ${rankDisplay}
                         ${flagHtml}
                         <span class="country-code">${country}</span>
                     </div>
-                    <div class="rank-score">${score.toLocaleString()}</div>
+                    <div class="rank-stats" style="text-align:right;">
+                        <span class="rank-score">${score.toLocaleString()}</span>
+                        <span class="rank-chats" style="font-size:0.8em; color:#aaa; margin-left:4px;" title="Chat Count">(💬${chats})</span>
+                    </div>
                 </div>
             `;
         }).join('');
