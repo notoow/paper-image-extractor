@@ -467,7 +467,15 @@ def extract_from_bytes(pdf_bytes):
                 # Convert to base64
                 b64 = base64.b64encode(image_bytes).decode("utf-8")
                 mime = base_image["ext"]
-                images.append(f"data:image/{mime};base64,{b64}")
+                
+                # Append Object (Frontend expects {base64, width, height...})
+                images.append({
+                    "base64": f"data:image/{mime};base64,{b64}",
+                    "width": base_image["width"],
+                    "height": base_image["height"],
+                    "size": len(image_bytes),
+                    "ext": mime
+                })
                 
                 if len(images) > 50: break # Safety limit
             if len(images) > 50: break
