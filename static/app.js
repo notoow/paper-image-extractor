@@ -193,14 +193,13 @@ const App = {
                     console.log("PDF Blob URL created:", url);
 
                     const pdfBtn = document.createElement('button');
-                    pdfBtn.className = 'pdf-view-btn glass-btn';
-                    // Enforce Visibility in case CSS fails
+                    // Style: Match Sort Button
+                    pdfBtn.className = 'neumorphic-icon-btn pdf-view-btn';
                     pdfBtn.style.display = 'inline-flex';
-                    pdfBtn.style.alignItems = 'center';
-                    pdfBtn.style.gap = '8px';
 
-                    pdfBtn.innerHTML = '<i class="fa-regular fa-file-pdf"></i> View Original';
-                    pdfBtn.title = 'View Sanitized PDF (Safe)';
+                    // Icon Only
+                    pdfBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i>';
+                    pdfBtn.title = 'View Original PDF (Safe)';
                     pdfBtn.onclick = () => window.open(url, '_blank');
 
                     // Insert before Download All button
