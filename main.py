@@ -190,8 +190,6 @@ class ConnectionManager:
         # Calculate distribution
         from collections import Counter
         dist = Counter(self.connection_countries.values())
-        # Format as string for tooltip: "KR: 2, US: 1"
-        dist_str = ", ".join([f"{k}: {v}" for k, v in dist.items() if k != "Unknown"])
         if not dist_str: dist_str = "Unknown"
 
         await self.broadcast({
@@ -199,6 +197,14 @@ class ConnectionManager:
             "count": len(self.active_connections),
             "distribution": dist_str
         })
+
+    async def set_country(self, websocket: WebSocket, country: str):
+        if websocket not in self.connection_countries: return
+        
+        # Only update and broadcast if changed
+        if self.connection_countries[websocket] != country:
+            self.connection_countries[websocket] = country
+            await self.broadcast_online_count()
 
     async def broadcast(self, message: dict):
         # Save chat to history if it's a chat message
