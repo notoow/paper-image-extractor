@@ -351,6 +351,10 @@ async def websocket_endpoint(websocket: WebSocket):
             msg_type = data.get("type", "chat")
             country = data.get("country", "UNKNOWN")
             
+            # Update connection country info if available
+            if country and country != "UNKNOWN":
+                await manager.set_country(websocket, country)
+            
             if msg_type == "chat":
                 msg = data.get("msg", "").strip()
                 if msg:
