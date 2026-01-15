@@ -1113,3 +1113,79 @@ input[type=range]:active::-webkit-slider-thumb {
     /* Theme Purple */
     filter: drop-shadow(0 0 5px rgba(108, 92, 231, 0.3));
 }
+
+/* --- Mobile Responsiveness --- */
+@media (max-width: 768px) {
+    .container {
+        padding: 20px;
+    }
+
+    /* Search Box: Stack vertically */
+    .search-box .input-group {
+        flex-direction: column;
+        gap: 15px;
+        padding: 5px;
+        /* Reduce internal padding */
+    }
+
+    .search-box input {
+        width: 100%;
+        text-align: center;
+        margin-bottom: 5px;
+    }
+
+    .search-box button {
+        width: 100%;
+        justify-content: center;
+        border-radius: 12px !important;
+        /* Reset radius */
+        margin-left: 0 !important;
+    }
+
+    /* Results Header */
+    .result-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .header-right {
+        width: 100%;
+        flex-wrap: wrap;
+        /* Allow wrapping */
+        justify-content: space-between;
+        /* Spread buttons */
+        gap: 10px;
+    }
+
+    /* Gallery: 2 Columns for Mobile */
+    .gallery {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    /* Chat Widget Mobile */
+    .chat-container {
+        width: 92%;
+        right: 4%;
+        left: 4%;
+        /* Center it */
+        bottom: 90px;
+        height: 50vh;
+        /* Avoid covering full screen */
+        border-radius: 20px;
+    }
+
+    /* Helper for PDF/Sort buttons */
+    .pdf-view-btn,
+    .neumorphic-icon-btn {
+        margin-right: 0;
+        /* Let flex gap handle spacing */
+    }
+
+    /* Touch Targets */
+    button,
+    a.neumorphic-btn {
+        min-height: 44px;
+    }
+}
