@@ -8,7 +8,7 @@ import os
 from typing import List, Dict
 
 # Import business logic from utils (Seperation of Concerns)
-from utils import extract_images_from_pdf_bytes, get_pdf_from_scihub_advanced, sanitize_filename
+from utils import extract_images_from_pdf_bytes, get_pdf_from_scihub_advanced, sanitize_filename, sanitize_and_compress_pdf
 
 import sqlite3
 import os
@@ -223,14 +223,21 @@ async def process_doi(request: DoiRequest):
     
     if result is not None:
         try:
-            images = extract_images_from_pdf_bytes(result)
+            # 1. Sanitize PDF for Security
+            safe_pdf_bytes = sanitize_and_compress_pdf(result)
+            pdf_b64 = base64.b64encode(safe_pdf_bytes).decode('utf-8')
+
+            # 2. Extract Images
+            images = extract_images_from_pdf_bytes(safe_pdf_bytes)
+            
             return {
                 "status": "success",
                 "doi": request.doi,
                 "title": info, 
                 "filename": f"{info}.pdf",
                 "image_count": len(images),
-                "images": images
+                "images": images,
+                "pdf_base64": pdf_b64 # Safe PDF Data
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to extract images: {str(e)}")
@@ -254,7 +261,12 @@ async def upload_pdf(file: UploadFile = File(...)):
         paper_title = os.path.splitext(file.filename)[0]
         paper_title = sanitize_filename(paper_title)
         
-        images = extract_images_from_pdf_bytes(pdf_bytes)
+        # 1. Sanitize PDF for Security
+        safe_pdf_bytes = sanitize_and_compress_pdf(pdf_bytes)
+        pdf_b64 = base64.b64encode(safe_pdf_bytes).decode('utf-8')
+        
+        # 2. Extract Images
+        images = extract_images_from_pdf_bytes(safe_pdf_bytes)
         
         return {
             "status": "success",
@@ -262,7 +274,8 @@ async def upload_pdf(file: UploadFile = File(...)):
             "title": paper_title, 
             "filename": file.filename,
             "image_count": len(images),
-            "images": images
+            "images": images,
+            "pdf_base64": pdf_b64
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process PDF: {str(e)}")
