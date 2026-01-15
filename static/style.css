@@ -1150,12 +1150,26 @@ input[type=range]:active::-webkit-slider-thumb {
     }
 
     .header-right {
-        width: 100%;
+        display: flex;
         flex-wrap: wrap;
-        /* Allow wrapping */
-        justify-content: space-between;
-        /* Spread buttons */
+        width: 100%;
         gap: 10px;
+    }
+
+    /* Small Buttons: Share row equally */
+    .header-right .neumorphic-icon-btn,
+    .header-right .pdf-view-btn {
+        flex: 1;
+        min-width: 0;
+        /* Prevent overflow */
+        margin-right: 0 !important;
+    }
+
+    /* Download All: Full Width below */
+    #downloadAllBtn {
+        width: 100%;
+        order: 10;
+        margin-top: 5px;
     }
 
     /* Gallery: 2 Columns for Mobile */
