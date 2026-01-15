@@ -319,7 +319,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 # --- Logic: PDF Image Extraction ---
-from utils import sanitize_and_compress_pdf, get_scihub_pdf_url, extract_images_from_pdf
+# --- Logic: PDF Image Extraction ---
+from utils import sanitize_and_compress_pdf, get_pdf_from_scihub_advanced
 
 @app.post("/api/like")
 async def like_image(
@@ -327,6 +328,7 @@ async def like_image(
     doi: str = Form(...),
     country: str = Form("Unknown")
 ):
+    # ... (Keep existing implementation of like_image) ...
     """
     Smart Like System:
     - Saves image to Supabase Storage.
@@ -415,14 +417,15 @@ async def process_doi(request: Request):
         return JSONResponse({"status": "error", "detail": "DOI required"}, status_code=400)
 
     try:
-        # 1. Get PDF URL
-        pdf_url = get_scihub_pdf_url(doi)
-        if not pdf_url:
-             return JSONResponse({"status": "error", "detail": "PDF not found on Sci-Hub"}, status_code=404)
+        # 1. Fetch PDF (Heavy I/O)
+        # Returns (pdf_bytes, title_or_error_msg)
+        pdf_bytes, result_msg = await run_in_threadpool(get_pdf_from_scihub_advanced, doi)
         
-        # 2. Extract Images (Heavy Task)
-        # Use threadpool
-        result = await run_in_threadpool(extract_logic, pdf_url)
+        if not pdf_bytes:
+             return JSONResponse({"status": "error", "detail": result_msg}, status_code=404)
+        
+        # 2. Extract Images (CPU Bound)
+        result = await run_in_threadpool(extract_from_bytes, pdf_bytes)
         
         if result["status"] == "success":
             result["doi"] = doi # Echo DOI
@@ -443,23 +446,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     except Exception as e:
         return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
 
-# --- Helper Functions (Sync) ---
-def extract_logic(pdf_url):
-    import requests
-    try:
-        # Download
-        # Check URL validity first?
-        if not pdf_url.startswith("http"): return {"status": "error", "detail": "Invalid URL"}
-        
-        r = requests.get(pdf_url, timeout=30, verify=False) # Verify False for SciHub often needed
-        if r.status_code != 200:
-            # Handle "Direct Link" failure, maybe try scraping logic?
-            # For now return manual link suggestion
-            return {"status": "manual_link", "url": pdf_url}
-            
-        return extract_from_bytes(r.content)
-    except Exception as e:
-        return {"status": "error", "detail": f"Download failed: {e}"}
+# extract_logic removed (obsolete)
 
 def extract_from_bytes(pdf_bytes):
     try:
