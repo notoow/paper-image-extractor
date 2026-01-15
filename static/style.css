@@ -1109,7 +1109,7 @@ input[type=range]:active::-webkit-slider-thumb {
 
 .pdf-view-btn i {
     font-size: 1.2rem;
-    color: #e74c3c !important;
-    /* Force Red */
-    filter: drop-shadow(0 0 5px rgba(231, 76, 60, 0.3));
+    color: #6c5ce7 !important;
+    /* Theme Purple */
+    filter: drop-shadow(0 0 5px rgba(108, 92, 231, 0.3));
 }
