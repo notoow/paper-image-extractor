@@ -185,13 +185,20 @@ const App = {
             if (oldPdfBtn) oldPdfBtn.remove();
 
             if (data.pdf_base64) {
+                console.log("PDF Base64 received. Size:", data.pdf_base64.length);
                 try {
                     const byteArr = this.base64ToBytes(data.pdf_base64);
                     const blob = new Blob([byteArr], { type: 'application/pdf' });
                     const url = URL.createObjectURL(blob);
+                    console.log("PDF Blob URL created:", url);
 
                     const pdfBtn = document.createElement('button');
-                    pdfBtn.className = 'pdf-view-btn glass-btn'; // Use glass style
+                    pdfBtn.className = 'pdf-view-btn glass-btn';
+                    // Enforce Visibility in case CSS fails
+                    pdfBtn.style.display = 'inline-flex';
+                    pdfBtn.style.alignItems = 'center';
+                    pdfBtn.style.gap = '8px';
+
                     pdfBtn.innerHTML = '<i class="fa-regular fa-file-pdf"></i> View Original';
                     pdfBtn.title = 'View Sanitized PDF (Safe)';
                     pdfBtn.onclick = () => window.open(url, '_blank');
@@ -201,6 +208,8 @@ const App = {
                 } catch (e) {
                     console.error("Failed to create PDF blob:", e);
                 }
+            } else {
+                console.warn("No PDF Base64 data found in response.");
             }
         }
     },
