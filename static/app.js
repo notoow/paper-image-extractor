@@ -14,7 +14,8 @@ const App = {
         myCountry: 'UN',
         chatOpen: false,
         unread: 0,
-        sessionId: Math.random().toString(36).substring(7) // Temp ID
+        sessionId: Math.random().toString(36).substring(7), // Temp ID
+        trendingDirty: false // For Refreshing Trending Tab
     },
 
     ui: {
@@ -615,10 +616,12 @@ const App = {
 
         // Logic
         if (tabName === 'trending') {
-            // Load if empty
             const grid = document.getElementById('trendingGrid');
-            if (grid && !grid.children.length || grid.querySelector('.loading-state')) {
+            const isEmpty = grid && (!grid.children.length || grid.querySelector('.loading-state'));
+
+            if (isEmpty || this.state.trendingDirty) {
                 this.fetchTrending('all');
+                this.state.trendingDirty = false;
             }
         }
     },
@@ -701,6 +704,8 @@ const App = {
             let current = parseInt(countSpan.textContent);
             countSpan.textContent = current + 1;
 
+            this.state.trendingDirty = true; // Mark for re-fetch to update ranks
+
             await fetch('/api/vote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -733,9 +738,13 @@ const App = {
 
             // Show toast/confetti?
             if (data.status === 'success') {
-                // Good
+                this.showStatus('Added to Hall of Fame! 🏆', 'success');
+                this.state.trendingDirty = true; // Mark for refresh
+
+                // Optional: Confetti or sound effect here
             }
         } catch (e) {
+            this.showStatus('Failed to like image.', 'error');
             console.error("Like failed", e);
         }
     },
