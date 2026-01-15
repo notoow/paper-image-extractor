@@ -76,6 +76,9 @@ def init_db():
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS scores
                      (country TEXT PRIMARY KEY, score INTEGER)''')
+        # Create Chat Table
+        c.execute('''CREATE TABLE IF NOT EXISTS chats
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT, country TEXT, msg TEXT, type TEXT, time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         conn.commit()
         conn.close()
     except Exception as e:
@@ -130,8 +133,24 @@ class ConnectionManager:
         self.active_connections: List[WebSocket] = []
         # DB is initialized in lifespan, safe to load
         self.leaderboard: Dict[str, int] = self._load_leaderboard()
-        # Keep last 50 chat messages in memory
+        # Keep last 50 chat messages in memory, loaded from DB
         self.chat_history = deque(maxlen=50)
+        self._load_history()
+
+    def _load_history(self):
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            # Get last 50 messages
+            c.execute("SELECT country, msg, type FROM chats ORDER BY id DESC LIMIT 50")
+            rows = c.fetchall()
+            # Rows are in DESC order (newest first), we need to append them in ASC order (oldest first)
+            for row in reversed(rows):
+                self.chat_history.append(dict(row))
+            conn.close()
+        except Exception as e:
+            print(f"Failed to load chat history: {e}")
 
     def _load_leaderboard(self) -> Dict[str, int]:
         try:
@@ -170,8 +189,19 @@ class ConnectionManager:
 
     async def broadcast(self, message: dict):
         # Save chat to history if it's a chat message
+        # Save chat to history if it's a chat message
         if message.get("type") == "chat":
             self.chat_history.append(message)
+            # Persist to DB
+            try:
+                conn = sqlite3.connect(DB_FILE)
+                c = conn.cursor()
+                c.execute("INSERT INTO chats (country, msg, type) VALUES (?, ?, ?)", 
+                          (message.get("country"), message.get("msg"), "chat"))
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print(f"Chat Save Error: {e}")
 
         # Clean up dead connections during broadcast
         to_remove = []
