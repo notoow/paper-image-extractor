@@ -707,9 +707,13 @@ const App = {
         }).join('');
     },
 
-    updateOnlineCount(count) {
+    updateOnlineCount(count, dist) {
         if (this.ui.onlineCount) {
             this.ui.onlineCount.textContent = `(${count})`;
+            if (dist) {
+                this.ui.onlineCount.title = `Current Users: ${dist}`;
+                this.ui.onlineCount.style.cursor = 'help';
+            }
         }
     }
 };
