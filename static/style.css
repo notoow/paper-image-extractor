@@ -1034,10 +1034,26 @@ input[type=range]:active::-webkit-slider-thumb {
     text-align: center;
 }
 
-.country-code {
-    font-size: 0.9rem;
-    color: var(--text-main);
-    font-weight: 500;
+.chat-rank {
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    margin: 10px 10px 0 10px;
+    border-radius: 12px;
+    /* Scroll support for many countries */
+    max-height: 150px;
+    /* Keep it compact above chat */
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.chat-rank::-webkit-scrollbar {
+    width: 4px;
+}
+
+.chat-rank::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
 }
 
 .rank-score {
