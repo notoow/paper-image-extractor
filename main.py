@@ -1,118 +1,77 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
-import uvicorn
+
 import os
+import shutil
 import base64
+import asyncio
+import logging
 from typing import List, Dict
-
-# Import business logic from utils (Seperation of Concerns)
-from utils import extract_images_from_pdf_bytes, get_pdf_from_scihub_advanced, sanitize_filename, sanitize_and_compress_pdf
-
-import sqlite3
-import os
+from collections import Counter, deque
 from contextlib import asynccontextmanager
-from apscheduler.schedulers.background import BackgroundScheduler
-from huggingface_hub import HfApi, hf_hub_download
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Form, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.concurrency import run_in_threadpool
+
+import fitz  # PyMuPDF
+from supabase import create_client, Client
 
 # --- Configuration ---
-DB_FILE = "/tmp/paper_war.db"
-REPO_ID = "notoow/paper-prism-db" # Dataset ID to store DB
-HF_TOKEN = os.environ.get("HF_TOKEN") # Auto-injected in Spaces
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-scheduler = BackgroundScheduler()
+# Fallback for local testing if env vars missing (Warn user)
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("WARNING: Supabase credentials not found. DB features will not persist.")
 
-# --- Sync Logic ---
-def sync_db_to_hub():
-    """Uploads the local DB to Hugging Face Hub"""
-    if not HF_TOKEN:
-        return
-    try:
-        api = HfApi(token=HF_TOKEN)
-        # Check/Create Repo
-        try:
-            api.repo_info(repo_id=REPO_ID, repo_type="dataset")
-        except:
-            # Silent attempt to create
-            try:
-                api.create_repo(repo_id=REPO_ID, repo_type="dataset", private=True, exist_ok=True)
-            except Exception as e:
-                print(f"Repo create failed: {e}")
-                return
-
-        print("Syncing DB to Hub...")
-        api.upload_file(
-            path_or_fileobj=DB_FILE,
-            path_in_repo="paper_war.db",
-            repo_id=REPO_ID,
-            repo_type="dataset",
-            commit_message="Sync DB: Auto-backup"
-        )
-    except Exception as e:
-        print(f"Sync failed (Non-critical): {e}")
-
-def init_db():
-    """Initialize DB"""
-    # 1. Try Restore
-    if HF_TOKEN:
-        try:
-            print("Attempting to restore DB from Hub...")
-            hf_hub_download(
-                repo_id=REPO_ID,
-                filename="paper_war.db",
-                repo_type="dataset",
-                local_dir="/tmp",
-                token=HF_TOKEN
-            )
-            print("DB Restored.")
-        except Exception as e:
-            print(f"Restore skipped: {e}")
-
-    # 2. Ensure Table Exists (Critical)
-    try:
-        conn = sqlite3.connect(DB_FILE)
-        c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS scores
-                     (country TEXT PRIMARY KEY, score INTEGER)''')
-        # Create Chat Table
-        c.execute('''CREATE TABLE IF NOT EXISTS chats
-                     (id INTEGER PRIMARY KEY AUTOINCREMENT, country TEXT, msg TEXT, type TEXT, time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"CRITICAL: DB Init Failed: {e}")
+# Initialize Supabase Client
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+except Exception as e:
+    print(f"Failed to init Supabase: {e}")
+    supabase = None
 
 # --- Lifespan ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    try:
-        init_db()
-        scheduler.add_job(sync_db_to_hub, 'interval', minutes=1)
-        scheduler.start()
-        print("Scheduler started.")
-    except Exception as e:
-        print(f"Scheduler failed to start: {e}")
-    
+    # Startup: Load Cache or Init counters
+    print("Server Started. Connected to Supabase." if supabase else "Server Started (No DB).")
     yield
-    
     # Shutdown
-    try:
-        scheduler.shutdown()
-        sync_db_to_hub()
-    except:
-        pass
+    print("Server Shutting Down.")
 
-# Initialize App
 app = FastAPI(lifespan=lifespan)
 
-@app.get("/health")
-async def health_check():
-    return {"status": "ok", "db": os.path.exists(DB_FILE)}
+# --- Middleware: Rate Limiting ---
+import time
+RATE_LIMIT_DATA = {}
+RATE_LIMIT_WINDOW = 60  # 1 minute
+RATE_LIMIT_MAX_REQUESTS = 30 
 
-# CORS Config
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    if request.url.path.startswith("/api/"):
+        forwarded = request.headers.get("X-Forwarded-For")
+        client_ip = forwarded.split(",")[0] if forwarded else request.client.host
+        now = time.time()
+        
+        if client_ip not in RATE_LIMIT_DATA:
+            RATE_LIMIT_DATA[client_ip] = []
+        
+        history = [t for t in RATE_LIMIT_DATA[client_ip] if now - t < RATE_LIMIT_WINDOW]
+        RATE_LIMIT_DATA[client_ip] = history
+        
+        if len(history) >= RATE_LIMIT_MAX_REQUESTS:
+             return JSONResponse(
+                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                 content={"status": "error", "detail": "Rate limit exceeded. Slow down."}
+             )
+        RATE_LIMIT_DATA[client_ip].append(now)
+
+    response = await call_next(request)
+    return response
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -121,121 +80,60 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Rate Limiter Middleware ---
-from fastapi import Request, status
-from fastapi.responses import JSONResponse
-import time
-
-# Simple in-memory rate limiter: IP -> [timestamp, ...]
-RATE_LIMIT_DATA = {}
-RATE_LIMIT_WINDOW = 60  # 1 minute
-RATE_LIMIT_MAX_REQUESTS = 30 # 30 requests per minute (approx 1 every 2 sec)
-
-@app.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
-    # Only limit heavy API endpoints
-    if request.url.path.startswith("/api/"):
-        # Get Real IP (Behind Proxy)
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            client_ip = forwarded.split(",")[0]
-        else:
-            client_ip = request.client.host
-            
-        now = time.time()
-        
-        # Initialize & Clean
-        if client_ip not in RATE_LIMIT_DATA:
-            RATE_LIMIT_DATA[client_ip] = []
-        
-        # Filter old requests (Sliding Window)
-        history = RATE_LIMIT_DATA[client_ip]
-        # Optimize: If too many, slice purely by index? No, need time.
-        # Simple filter is O(N), N is small (30).
-        history = [t for t in history if now - t < RATE_LIMIT_WINDOW]
-        RATE_LIMIT_DATA[client_ip] = history
-        
-        # Check Limit
-        if len(history) >= RATE_LIMIT_MAX_REQUESTS:
-             return JSONResponse(
-                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                 content={"status": "error", "detail": "Rate limit exceeded. Slow down."}
-             )
-             
-        # Add current request
-        RATE_LIMIT_DATA[client_ip].append(now)
-
-    response = await call_next(request)
-    return response
-
 os.makedirs("static", exist_ok=True)
-
-
-
-from collections import deque
 
 # --- WebSocket & Chat Manager ---
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
-        # DB is initialized in lifespan, safe to load
-        self.leaderboard: Dict[str, int] = self._load_leaderboard()
-        # Keep last 50 chat messages in memory, loaded from DB
-        self.chat_history = deque(maxlen=50)
-        self._load_history()
-        # Track countries for online users {ws: "Unknown"}
         self.connection_countries: Dict[WebSocket, str] = {}
-        # Track chat counts from DB
-        self.chat_counts: Counter = self._load_chat_counts()
-    
-    def _load_chat_counts(self):
-        from collections import Counter
-        try:
-            conn = sqlite3.connect(DB_FILE)
-            c = conn.cursor()
-            c.execute("SELECT country, COUNT(*) FROM chats GROUP BY country")
-            counts = Counter(dict(c.fetchall()))
-            conn.close()
-            return counts
-        except Exception as e:
-            print(f"Failed to load chat counts: {e}")
-            return Counter()
+        
+        # In-memory caches for speed (Sync with DB in background)
+        self.chat_history = deque(maxlen=50) 
+        self.leaderboard_cache = [] # List of dicts
+        
+        # Initial Load
+        if supabase:
+            self._load_data_from_supabase()
 
-    def _load_history(self):
+    def _load_data_from_supabase(self):
         try:
-            conn = sqlite3.connect(DB_FILE)
-            conn.row_factory = sqlite3.Row
-            c = conn.cursor()
-            # Get last 50 messages
-            c.execute("SELECT country, msg, type FROM chats ORDER BY id DESC LIMIT 50")
-            rows = c.fetchall()
-            # Rows are in DESC order (newest first), we need to append them in ASC order (oldest first)
-            for row in reversed(rows):
-                self.chat_history.append(dict(row))
-            conn.close()
+            # 1. Load Last 50 Chats
+            response = supabase.table("chats").select("*").order("created_at", desc=True).limit(50).execute()
+            # Reverse to show oldest first
+            for row in reversed(response.data):
+                self.chat_history.append({
+                    "country": row.get("country", "Unknown"),
+                    "msg": row.get("msg", ""),
+                    "type": "chat"
+                })
+                
+            # 2. Load Leaderboard (Aggregate from DB or use a view)
+            # For simplicity, we assume a 'leaderboard' table exists that we update
+            self._update_leaderboard_cache()
+            
         except Exception as e:
-            print(f"Failed to load chat history: {e}")
+            print(f"DB Load Error: {e}")
 
-    def _load_leaderboard(self) -> Dict[str, int]:
+    def _update_leaderboard_cache(self):
         try:
-            conn = sqlite3.connect(DB_FILE)
-            c = conn.cursor()
-            c.execute("SELECT country, score FROM scores")
-            data = {row[0]: row[1] for row in c.fetchall()}
-            conn.close()
-            return data
-        except Exception:
-            return {}
+            if not supabase: return
+            # Assume 'leaderboard' table: country, score, chat_count
+            res = supabase.table("leaderboard").select("*").order("score", desc=True).limit(50).execute()
+            self.leaderboard_cache = res.data
+        except Exception as e:
+            print(f"Leaderboard Update Error: {e}")
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        self.connection_countries[websocket] = "Unknown" # Default
-        # Send init data with online count and history
+        self.connection_countries[websocket] = "Unknown"
+        
+        # Send Init Data
         await websocket.send_json({
             "type": "init", 
             "online": len(self.active_connections),
-            "leaderboard": self.get_rich_leaderboard(),
+            "leaderboard": self.leaderboard_cache,
             "history": list(self.chat_history)
         })
         await self.broadcast_online_count()
@@ -245,179 +143,88 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
         if websocket in self.connection_countries:
             del self.connection_countries[websocket]
-        # Don't await broadcast here to avoid error loop, just schedule it or ignore if loop closing
-        
+        # We don't await broadcast here to avoid error loops, self-corrects next tick
+
+    async def set_country(self, websocket: WebSocket, country: str):
+        if websocket not in self.connection_countries: return
+        if self.connection_countries[websocket] != country:
+            self.connection_countries[websocket] = country
+            await self.broadcast_online_count()
+
     async def broadcast_online_count(self):
-        # Calculate distribution
-        from collections import Counter
         dist = Counter(self.connection_countries.values())
-        # Format as string for tooltip: "KR: 2, US: 1"
         dist_str = ", ".join([f"{k}: {v}" for k, v in dist.items() if k != "Unknown"])
         if not dist_str: dist_str = "Unknown"
 
-        await self.broadcast({
+        await self.broadcast_internal({
             "type": "online_count", 
             "count": len(self.active_connections),
             "distribution": dist_str
         })
 
-    async def set_country(self, websocket: WebSocket, country: str):
-        if websocket not in self.connection_countries: return
-        
-        # Only update and broadcast if changed
-        if self.connection_countries[websocket] != country:
-            self.connection_countries[websocket] = country
-            await self.broadcast_online_count()
-
-    def get_rich_leaderboard(self):
-        # Combine scores and chat counts
-        all_countries = set(self.leaderboard.keys()) | set(self.chat_counts.keys())
-        rich_data = []
-        for c in all_countries:
-            rich_data.append({
-                "country": c,
-                "score": self.leaderboard.get(c, 0),
-                "chats": self.chat_counts.get(c, 0)
-            })
-        # Sort by Score DESC, then Chats DESC
-        rich_data.sort(key=lambda x: (x['score'], x['chats']), reverse=True)
-        return rich_data
-
     async def broadcast(self, message: dict):
-        # Save chat to history if it's a chat message
-        if message.get("type") == "chat":
-            # Update country for this connection
-            country = message.get("country")
-            if country:
-                self.chat_counts[country] += 1
+        # 1. Send to all WS
+        await self.broadcast_internal(message)
 
-            self.chat_history.append(message)
-            # Persist to DB
-            try:
-                conn = sqlite3.connect(DB_FILE)
-                c = conn.cursor()
-                c.execute("INSERT INTO chats (country, msg, type) VALUES (?, ?, ?)", 
-                          (message.get("country"), message.get("msg"), "chat"))
-                conn.commit()
-                conn.close()
-            except Exception as e:
-                print(f"Chat Save Error: {e}")
+        # 2. Persist to DB (Async)
+        if supabase:
+            await run_in_threadpool(self._persist_message, message)
 
-        # Clean up dead connections during broadcast
-        to_remove = []
+    async def broadcast_internal(self, message: dict):
         for connection in self.active_connections:
             try:
                 await connection.send_json(message)
             except:
-                to_remove.append(connection)
-        
-        for conn in to_remove:
-            if conn in self.active_connections:
-                self.active_connections.remove(conn)
-                
-    def update_score(self, country: str):
-        if not country: return
-        
-        try:
-            conn = sqlite3.connect(DB_FILE)
-            c = conn.cursor()
-            c.execute("""
-                INSERT INTO scores (country, score) VALUES (?, 1)
-                ON CONFLICT(country) DO UPDATE SET score = score + 1
-            """, (country,))
-            conn.commit()
-            
-            c.execute("SELECT score FROM scores WHERE country = ?", (country,))
-            row = c.fetchone()
-            if row:
-                self.leaderboard[country] = row[0]
-            conn.close()
-        except Exception as e:
-            print(f"DB Error: {e}")
+                pass # Dead connection
 
-    # ... (rest same) ...
+    def _persist_message(self, message: dict):
+        try:
+            msg_type = message.get("type")
+            country = message.get("country", "Unknown")
+            
+            if msg_type == "chat":
+                msg = message.get("msg")
+                # Insert Chat
+                supabase.table("chats").insert({"country": country, "msg": msg}).execute()
+                # Update Leaderboard (Chat Count)
+                self._upsert_stats(country, chat_inc=1)
+                
+                # Update Local Cache
+                self.chat_history.append(message)
+
+            elif msg_type == "update_score":
+                # Update Leaderboard (Score)
+                self._upsert_stats(country, score_inc=1)
+                
+            # Refresh Cache
+            self._update_leaderboard_cache()
+
+        except Exception as e:
+            print(f"Persist Error: {e}")
+
+    def _upsert_stats(self, country, score_inc=0, chat_inc=0):
+        # Safe Upsert RPC or Check-then-Update
+        # Ideally use RPC: create function increment_stats(c text, s int, ch int)
+        # Fallback logic:
+        try:
+            res = supabase.table("leaderboard").select("*").eq("country", country).execute()
+            if res.data:
+                curr = res.data[0]
+                new_score = curr['score'] + score_inc
+                new_chats = curr['chat_count'] + chat_inc
+                supabase.table("leaderboard").update({"score": new_score, "chat_count": new_chats}).eq("country", country).execute()
+            else:
+                supabase.table("leaderboard").insert({"country": country, "score": score_inc, "chat_count": chat_inc}).execute()
+        except:
+            pass
 
 manager = ConnectionManager()
 
-
-# Data Models
-class DoiRequest(BaseModel):
-    doi: str
-
-# --- Routes (KISS: Only Routing Logic) ---
-
-@app.post("/api/process")
-async def process_doi(request: DoiRequest):
-    print(f"Processing DOI: {request.doi}")
-    
-    result, info = get_pdf_from_scihub_advanced(request.doi)
-    
-    if result is not None:
-        try:
-            # 1. Sanitize PDF for Security
-            safe_pdf_bytes = sanitize_and_compress_pdf(result)
-            pdf_b64 = base64.b64encode(safe_pdf_bytes).decode('utf-8')
-
-            # 2. Extract Images
-            images = extract_images_from_pdf_bytes(safe_pdf_bytes)
-            
-            return {
-                "status": "success",
-                "doi": request.doi,
-                "title": info, 
-                "filename": f"{info}.pdf",
-                "image_count": len(images),
-                "images": images,
-                "pdf_base64": pdf_b64 # Safe PDF Data
-            }
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to extract images: {str(e)}")
-            
-    if info and info.startswith('http'):
-        return {
-            "status": "manual_link",
-            "doi": request.doi,
-            "pdf_url": info,
-            "message": "Server blocked. Please download manually."
-        }
-    
-    raise HTTPException(status_code=404, detail=info)
-
-@app.post("/api/upload")
-async def upload_pdf(file: UploadFile = File(...)):
-    print(f"Processing uploaded file: {file.filename}")
-    
-    try:
-        pdf_bytes = await file.read()
-        paper_title = os.path.splitext(file.filename)[0]
-        paper_title = sanitize_filename(paper_title)
-        
-        # 1. Sanitize PDF for Security
-        safe_pdf_bytes = sanitize_and_compress_pdf(pdf_bytes)
-        pdf_b64 = base64.b64encode(safe_pdf_bytes).decode('utf-8')
-        
-        # 2. Extract Images
-        images = extract_images_from_pdf_bytes(safe_pdf_bytes)
-        
-        return {
-            "status": "success",
-            "doi": "uploaded_file",
-            "title": paper_title, 
-            "filename": file.filename,
-            "image_count": len(images),
-            "images": images,
-            "pdf_base64": pdf_b64
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process PDF: {str(e)}")
-
-# --- WebSocket Chat Endpoint ---
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     
-    # Rate Limiting State
-    import time
+    # Anti-Spam
     last_msg_time = 0
     msg_burst_count = 0
     burst_window_start = time.time()
@@ -426,73 +233,140 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_json()
             
-            # --- Rate Limiting Check ---
+            # Rate Limit
             now = time.time()
-            
-            # Rule 1: Min Interval 0.1s (Machine speed check)
-            if now - last_msg_time < 0.1:
-                continue # Silently drop
-
-            # Rule 2: Burst Check (Max 10 msgs in 3 seconds)
+            if now - last_msg_time < 0.1: continue
             if now - burst_window_start > 3.0:
-                # Reset window
                 msg_burst_count = 0
                 burst_window_start = now
-            
             msg_burst_count += 1
-            
             if msg_burst_count > 10:
-                # Warn user and drop
-                await websocket.send_json({
-                    "type": "chat",
-                    "country": "System",
-                    "msg": "🛑 Slow down! You are sending messages too quickly."
-                })
+                await websocket.send_json({"type": "chat", "country": "System", "msg": "🛑 Too fast!"})
                 continue
-
             last_msg_time = now
-            # ---------------------------
-
-            # Expected: { "country": "KR", "msg": "Hello", "type": "chat" }
             
+            # Process
             msg_type = data.get("type", "chat")
             country = data.get("country", "UNKNOWN")
             
-            # Update connection country info if available
             if country and country != "UNKNOWN":
                 await manager.set_country(websocket, country)
             
             if msg_type == "chat":
                 msg = data.get("msg", "").strip()
                 if msg:
-                    # Broadcast chat only (Score updated via 'score' type)
+                     # Broadcast updates cache & DB, then sends to all
                     await manager.broadcast({
                         "type": "chat",
                         "country": country,
                         "msg": msg,
-                        "leaderboard": manager.get_rich_leaderboard()
+                        "leaderboard": manager.leaderboard_cache # Send optimistic/cached
                     })
             elif msg_type == "score":
-                # Just update score (e.g. on Download)
-                manager.update_score(country)
+                # Score update request (e.g. download)
+                # We handle DB update in broadcast wrapper
                 await manager.broadcast({
                     "type": "update_score",
-                    "leaderboard": manager.get_rich_leaderboard()
+                    "country": country,
+                    # We don't send leaderboard here, manager will fetch fresh one next time or we can trigger it
+                    "leaderboard": manager.leaderboard_cache 
                 })
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+        await manager.broadcast_online_count()
+
+
+# --- Logic: PDF Image Extraction ---
+from utils import sanitize_and_compress_pdf, get_scihub_pdf_url, extract_images_from_pdf
+
+@app.post("/api/process")
+async def process_doi(request: Request):
+    data = await request.json()
+    doi = data.get("doi")
+    
+    if not doi:
+        return JSONResponse({"status": "error", "detail": "DOI required"}, status_code=400)
+
+    try:
+        # 1. Get PDF URL
+        pdf_url = get_scihub_pdf_url(doi)
+        if not pdf_url:
+             return JSONResponse({"status": "error", "detail": "PDF not found on Sci-Hub"}, status_code=404)
+        
+        # 2. Extract Images (Heavy Task)
+        # Use threadpool
+        result = await run_in_threadpool(extract_logic, pdf_url)
+        
+        if result["status"] == "success":
+            result["doi"] = doi # Echo DOI
+            return result
+        else:
+            return JSONResponse(result, status_code=400)
+
     except Exception as e:
-        print(f"WS Error: {e}")
-        manager.disconnect(websocket)
+        return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
 
+@app.post("/api/upload")
+async def upload_pdf(file: UploadFile = File(...)):
+    try:
+        contents = await file.read()
+        # Process from bytes
+        result = await run_in_threadpool(extract_from_bytes, contents)
+        return result
+    except Exception as e:
+        return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
 
-# Frontend Routes
-@app.get("/")
-async def read_index():
-    return FileResponse('static/index.html')
+# --- Helper Functions (Sync) ---
+def extract_logic(pdf_url):
+    import requests
+    try:
+        # Download
+        # Check URL validity first?
+        if not pdf_url.startswith("http"): return {"status": "error", "detail": "Invalid URL"}
+        
+        r = requests.get(pdf_url, timeout=30, verify=False) # Verify False for SciHub often needed
+        if r.status_code != 200:
+            # Handle "Direct Link" failure, maybe try scraping logic?
+            # For now return manual link suggestion
+            return {"status": "manual_link", "url": pdf_url}
+            
+        return extract_from_bytes(r.content)
+    except Exception as e:
+        return {"status": "error", "detail": f"Download failed: {e}"}
 
+def extract_from_bytes(pdf_bytes):
+    try:
+        # 1. Sanitize (Security)
+        safe_pdf = sanitize_and_compress_pdf(pdf_bytes)
+        
+        # 2. Extract
+        import fitz
+        doc = fitz.open(stream=safe_pdf, filetype="pdf")
+        images = []
+        
+        for i in range(len(doc)):
+            for img in doc.get_page_images(i):
+                xref = img[0]
+                base_image = doc.extract_image(xref)
+                image_bytes = base_image["image"]
+                
+                # Convert to base64
+                b64 = base64.b64encode(image_bytes).decode("utf-8")
+                mime = base_image["ext"]
+                images.append(f"data:image/{mime};base64,{b64}")
+                
+                if len(images) > 50: break # Safety limit
+            if len(images) > 50: break
+            
+        return {"status": "success", "images": images, "count": len(images)}
+    except Exception as e:
+        return {"status": "error", "detail": f"Extraction error: {e}"}
+
+from fastapi.staticfiles import StaticFiles
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=7860, reload=True)
+@app.get("/")
+async def read_root():
+    from fastapi.responses import FileResponse
+    return FileResponse("static/index.html")
