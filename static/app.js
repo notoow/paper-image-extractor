@@ -85,6 +85,38 @@ const App = {
 
         // Init Chat
         this.initChat();
+
+        // Render History
+        this.renderHistory();
+    },
+
+    saveHistory(doi) {
+        if (!doi || doi === 'uploaded_file') return;
+        let history = JSON.parse(localStorage.getItem('paper_history') || '[]');
+        history = history.filter(h => h !== doi);
+        history.unshift(doi);
+        if (history.length > 5) history.pop();
+        localStorage.setItem('paper_history', JSON.stringify(history));
+        this.renderHistory();
+    },
+
+    renderHistory() {
+        const container = document.getElementById('searchHistory');
+        if (!container) return;
+
+        const history = JSON.parse(localStorage.getItem('paper_history') || '[]');
+
+        if (history.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'flex';
+        container.innerHTML = history.map(doi => `
+            <div class="history-chip" onclick="document.getElementById('doiInput').value = '${doi}'; App.processDoi();">
+                <i class="fa-solid fa-clock-rotate-left"></i> ${doi}
+            </div>
+        `).join('');
     },
 
     // ... (Network & DragDrop Same)
@@ -118,7 +150,7 @@ const App = {
         try {
             const response = await fetch('/api/process', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doi: doi }) });
             const data = await response.json();
-            this.handleResponse(response, data);
+            this.handleResponse(response, data, doi); // Pass doi to handleResponse
         } catch (error) { this.showErrorWithRescueLink('Network error or timeout.'); } finally { this.setLoading(false); }
     },
 
@@ -133,13 +165,19 @@ const App = {
         try {
             const response = await fetch('/api/upload', { method: 'POST', body: formData });
             const data = await response.json();
-            this.handleResponse(response, data);
+            this.handleResponse(response, data, 'uploaded_file'); // Pass 'uploaded_file' as identifier
         } catch (error) { this.showStatus('Error uploading file.', 'error'); } finally { this.setLoading(false); this.ui.pdfUploadInput.value = ''; }
     },
 
-    handleResponse(response, data) {
-        if (response.ok && data.status === 'success') { this.renderSuccess(data); }
-        else if (data && data.status === 'manual_link') { this.renderManualLink(data); }
+    handleResponse(response, data, identifier = null) {
+        if (response.ok && data.status === 'success') {
+            this.renderSuccess(data);
+            if (identifier) this.saveHistory(identifier);
+        }
+        else if (data && data.status === 'manual_link') {
+            this.renderManualLink(data);
+            if (identifier) this.saveHistory(identifier);
+        }
         else { this.showErrorWithRescueLink(data.detail || 'Error'); }
     },
 
