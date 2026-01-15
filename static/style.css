@@ -1056,6 +1056,12 @@ input[type=range]:active::-webkit-slider-thumb {
     border-radius: 4px;
 }
 
+.country-code {
+    font-size: 0.9rem;
+    color: var(--text-main);
+    font-weight: 500;
+}
+
 .rank-score {
     font-size: 1rem;
     background: -webkit-linear-gradient(45deg, #0984e3, #6c5ce7);
