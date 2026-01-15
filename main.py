@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uvicorn
 import os
+import base64
 from typing import List, Dict
 
 # Import business logic from utils (Seperation of Concerns)
