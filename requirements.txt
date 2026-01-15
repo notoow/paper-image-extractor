@@ -4,10 +4,12 @@ requests
 beautifulsoup4
 requests
 pymupdf
+# fitz is included in pymupdf
+python-multipart
+# schedule (using apscheduler mostly, but keep if needed)
 schedule
-fitz
 apscheduler
 huggingface_hub
-supabase
+supabase>=2.0.0
 apscheduler
 websockets
