@@ -1219,9 +1219,47 @@ input[type=range]:active::-webkit-slider-thumb {
         /* Let flex gap handle spacing */
     }
 
-    /* Touch Targets */
     button,
     a.neumorphic-btn {
         min-height: 44px;
     }
+}
+
+/* History Chips */
+.search-history {
+    margin-top: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.history-chip {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: var(--text-light);
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(4px);
+}
+
+.history-chip:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-main);
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.history-chip i {
+    font-size: 0.8em;
+    opacity: 0.7;
 }
