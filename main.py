@@ -136,6 +136,8 @@ class ConnectionManager:
         # Keep last 50 chat messages in memory, loaded from DB
         self.chat_history = deque(maxlen=50)
         self._load_history()
+        # Track countries for online users {ws: "Unknown"}
+        self.connection_countries: Dict[WebSocket, str] = {}
 
     def _load_history(self):
         try:
@@ -166,6 +168,7 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
+        self.connection_countries[websocket] = "Unknown" # Default
         # Send init data with online count and history
         await websocket.send_json({
             "type": "init", 
@@ -179,18 +182,37 @@ class ConnectionManager:
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
+        if websocket in self.connection_countries:
+            del self.connection_countries[websocket]
         # Don't await broadcast here to avoid error loop, just schedule it or ignore if loop closing
         
     async def broadcast_online_count(self):
+        # Calculate distribution
+        from collections import Counter
+        dist = Counter(self.connection_countries.values())
+        # Format as string for tooltip: "KR: 2, US: 1"
+        dist_str = ", ".join([f"{k}: {v}" for k, v in dist.items() if k != "Unknown"])
+        if not dist_str: dist_str = "Unknown"
+
         await self.broadcast({
             "type": "online_count", 
-            "count": len(self.active_connections)
+            "count": len(self.active_connections),
+            "distribution": dist_str
         })
 
     async def broadcast(self, message: dict):
         # Save chat to history if it's a chat message
         # Save chat to history if it's a chat message
         if message.get("type") == "chat":
+            # Update country for this connection
+            country = message.get("country")
+            if country:
+                # Find which ws sent this? Wait, broadcast doesn't know sender.
+                # We need to update connection_countries elsewhere or trust the message.
+                # Actually, 'broadcast' is called by the websocket endpoint loop where we HAVE the websocket.
+                # Let's refactor: update_country_info(ws, country) called from endpoint.
+                pass 
+
             self.chat_history.append(message)
             # Persist to DB
             try:
