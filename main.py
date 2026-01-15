@@ -87,7 +87,7 @@ async def lifespan(app: FastAPI):
     # Startup
     try:
         init_db()
-        scheduler.add_job(sync_db_to_hub, 'interval', minutes=5)
+        scheduler.add_job(sync_db_to_hub, 'interval', minutes=1)
         scheduler.start()
         print("Scheduler started.")
     except Exception as e:
