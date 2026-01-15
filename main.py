@@ -31,14 +31,46 @@ except Exception as e:
     print(f"Failed to init Supabase: {e}")
     supabase = None
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+# --- Scheduler for Cleanup ---
+scheduler = AsyncIOScheduler()
+
+async def cleanup_old_data():
+    """Janitor: Keeps DB clean & within quota."""
+    if not supabase: return
+    try:
+        print("🧹 Janitor: Cleaning up old chats...")
+        # Policy: Keep last 10,000 messages.
+        # 1. Get ID of the 10,000th newest message
+        res = supabase.table("chats").select("id").order("id", desc=True).range(10000, 10000).limit(1).execute()
+        
+        if res.data:
+            cutoff_id = res.data[0]['id']
+            # 2. Delete everything older than that ID
+            supabase.table("chats").delete().lt("id", cutoff_id).execute()
+            print(f"🧹 Janitor: Deleted chats older than ID {cutoff_id}")
+        else:
+            print("🧹 Janitor: Chat count under limit.")
+            
+    except Exception as e:
+        print(f"Janitor Error: {e}")
+
 # --- Lifespan ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Load Cache or Init counters
+    # Startup
     print("Server Started. Connected to Supabase." if supabase else "Server Started (No DB).")
+    
+    # Start Janitor Scheduler (Run every hour)
+    scheduler.add_job(cleanup_old_data, 'interval', hours=1)
+    scheduler.start()
+    
     yield
+    
     # Shutdown
     print("Server Shutting Down.")
+    scheduler.shutdown()
 
 app = FastAPI(lifespan=lifespan)
 
