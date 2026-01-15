@@ -252,21 +252,45 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# Global Traffic Control (Physics Engine)
+GLOBAL_TPS_LIMIT = 10   # Max 10 messages per second (Server-wide)
+_global_tps_count = 0
+_global_tps_window = 0
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     
-    # Anti-Spam
+    # Anti-Spam (Personal)
     last_msg_time = 0
     msg_burst_count = 0
     burst_window_start = time.time()
+    
+    # Global Vars
+    global _global_tps_count, _global_tps_window
 
     try:
         while True:
             data = await websocket.receive_json()
-            
-            # Rate Limit
             now = time.time()
+            
+            # 1. Global Safety Valve (Total Throughput Limit)
+            # Reset window every second
+            if now - _global_tps_window > 1.0:
+                _global_tps_count = 0
+                _global_tps_window = now
+            
+            if _global_tps_count >= GLOBAL_TPS_LIMIT:
+                # Server is overloaded (DDoS defense)
+                # Drop message silently or warn
+                await websocket.send_json({"type": "error", "msg": "🔥 Server busy (High Traffic). Try again."})
+                continue
+                
+            _global_tps_count += 1
+            
+            # ... (Personal Rate Limit Logic continues) ...
+            
+            # 2. Personal Rate Limit
             if now - last_msg_time < 0.1: continue
             if now - burst_window_start > 3.0:
                 msg_burst_count = 0
@@ -285,7 +309,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 await manager.set_country(websocket, country)
             
             if msg_type == "chat":
-                msg = data.get("msg", "").strip()
+                msg = data.get("msg", "").strip() # ... existing logic
                 if msg:
                      # Broadcast updates cache & DB, then sends to all
                     await manager.broadcast({
