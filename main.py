@@ -138,6 +138,21 @@ class ConnectionManager:
         self._load_history()
         # Track countries for online users {ws: "Unknown"}
         self.connection_countries: Dict[WebSocket, str] = {}
+        # Track chat counts from DB
+        self.chat_counts: Counter = self._load_chat_counts()
+    
+    def _load_chat_counts(self):
+        from collections import Counter
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            c = conn.cursor()
+            c.execute("SELECT country, COUNT(*) FROM chats GROUP BY country")
+            counts = Counter(dict(c.fetchall()))
+            conn.close()
+            return counts
+        except Exception as e:
+            print(f"Failed to load chat counts: {e}")
+            return Counter()
 
     def _load_history(self):
         try:
@@ -172,11 +187,10 @@ class ConnectionManager:
         # Send init data with online count and history
         await websocket.send_json({
             "type": "init", 
-            "leaderboard": self.leaderboard,
             "online": len(self.active_connections),
+            "leaderboard": self.get_rich_leaderboard(),
             "history": list(self.chat_history)
         })
-        # Broadcast new user count
         await self.broadcast_online_count()
 
     def disconnect(self, websocket: WebSocket):
@@ -208,18 +222,27 @@ class ConnectionManager:
             self.connection_countries[websocket] = country
             await self.broadcast_online_count()
 
+    def get_rich_leaderboard(self):
+        # Combine scores and chat counts
+        all_countries = set(self.leaderboard.keys()) | set(self.chat_counts.keys())
+        rich_data = []
+        for c in all_countries:
+            rich_data.append({
+                "country": c,
+                "score": self.leaderboard.get(c, 0),
+                "chats": self.chat_counts.get(c, 0)
+            })
+        # Sort by Score DESC, then Chats DESC
+        rich_data.sort(key=lambda x: (x['score'], x['chats']), reverse=True)
+        return rich_data
+
     async def broadcast(self, message: dict):
-        # Save chat to history if it's a chat message
         # Save chat to history if it's a chat message
         if message.get("type") == "chat":
             # Update country for this connection
             country = message.get("country")
             if country:
-                # Find which ws sent this? Wait, broadcast doesn't know sender.
-                # We need to update connection_countries elsewhere or trust the message.
-                # Actually, 'broadcast' is called by the websocket endpoint loop where we HAVE the websocket.
-                # Let's refactor: update_country_info(ws, country) called from endpoint.
-                pass 
+                self.chat_counts[country] += 1
 
             self.chat_history.append(message)
             # Persist to DB
@@ -365,14 +388,14 @@ async def websocket_endpoint(websocket: WebSocket):
                         "type": "chat",
                         "country": country,
                         "msg": msg,
-                        "leaderboard": manager.leaderboard
+                        "leaderboard": manager.get_rich_leaderboard()
                     })
             elif msg_type == "score":
                 # Just update score (e.g. on Download)
                 manager.update_score(country)
                 await manager.broadcast({
                     "type": "update_score",
-                    "leaderboard": manager.leaderboard
+                    "leaderboard": manager.get_rich_leaderboard()
                 })
 
     except WebSocketDisconnect:
