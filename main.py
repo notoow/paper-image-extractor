@@ -121,6 +121,53 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Rate Limiter Middleware ---
+from fastapi import Request, status
+from fastapi.responses import JSONResponse
+import time
+
+# Simple in-memory rate limiter: IP -> [timestamp, ...]
+RATE_LIMIT_DATA = {}
+RATE_LIMIT_WINDOW = 60  # 1 minute
+RATE_LIMIT_MAX_REQUESTS = 30 # 30 requests per minute (approx 1 every 2 sec)
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    # Only limit heavy API endpoints
+    if request.url.path.startswith("/api/"):
+        # Get Real IP (Behind Proxy)
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            client_ip = forwarded.split(",")[0]
+        else:
+            client_ip = request.client.host
+            
+        now = time.time()
+        
+        # Initialize & Clean
+        if client_ip not in RATE_LIMIT_DATA:
+            RATE_LIMIT_DATA[client_ip] = []
+        
+        # Filter old requests (Sliding Window)
+        history = RATE_LIMIT_DATA[client_ip]
+        # Optimize: If too many, slice purely by index? No, need time.
+        # Simple filter is O(N), N is small (30).
+        history = [t for t in history if now - t < RATE_LIMIT_WINDOW]
+        RATE_LIMIT_DATA[client_ip] = history
+        
+        # Check Limit
+        if len(history) >= RATE_LIMIT_MAX_REQUESTS:
+             return JSONResponse(
+                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                 content={"status": "error", "detail": "Rate limit exceeded. Slow down."}
+             )
+             
+        # Add current request
+        RATE_LIMIT_DATA[client_ip].append(now)
+
+    response = await call_next(request)
+    return response
+
 os.makedirs("static", exist_ok=True)
 
 
