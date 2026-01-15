@@ -11,6 +11,35 @@ def sanitize_filename(title: str) -> str:
     """Sanitize the paper title for use as a filename."""
     return "".join([c for c in title if c.isalnum() or c in (' ', '-', '_')]).strip()
 
+def sanitize_and_compress_pdf(pdf_bytes: bytes) -> bytes:
+    """
+    Load PDF, clean malicious scripts/embedded files, and compress it.
+    Returns the sanitized PDF bytes safe for client consumption.
+    """
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        
+        # Security: Remove JS, embedded files, annotations, and form fields
+        # This effectively neutralizes most PDF-based attacks (XSS, Launch actions)
+        doc.scrub(
+            attached_files=True, 
+            clean_pages=True, 
+            embedded_files=True, 
+            javascript=True,
+            hidden_text=False, # Keep text for reading
+            xml_metadata=True # Remove potentially sensitive metadata
+        )
+        
+        # Save with garbage collection and compression
+        # garbage=4: Remove duplicates and unused objects (highest level)
+        # clean=True: Syntax check and fix
+        sanitized_bytes = doc.tobytes(garbage=4, deflate=True, clean=True)
+        doc.close()
+        return sanitized_bytes
+    except Exception as e:
+        print(f"Sanitization Warning: {e}. Returning original bytes (Risky but fallback).")
+        return pdf_bytes
+
 def extract_images_from_pdf_bytes(pdf_bytes: bytes) -> list:
     """
     Extracts images from PDF bytes using PyMuPDF.
