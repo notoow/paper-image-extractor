@@ -705,6 +705,12 @@ const App = {
                 </div>
             `;
         }).join('');
+    },
+
+    updateOnlineCount(count) {
+        if (this.ui.onlineCount) {
+            this.ui.onlineCount.textContent = `(${count})`;
+        }
     }
 };
 document.addEventListener('DOMContentLoaded', () => App.init());
