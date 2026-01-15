@@ -190,6 +190,8 @@ class ConnectionManager:
         # Calculate distribution
         from collections import Counter
         dist = Counter(self.connection_countries.values())
+        # Format as string for tooltip: "KR: 2, US: 1"
+        dist_str = ", ".join([f"{k}: {v}" for k, v in dist.items() if k != "Unknown"])
         if not dist_str: dist_str = "Unknown"
 
         await self.broadcast({
