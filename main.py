@@ -368,9 +368,44 @@ async def upload_pdf(file: UploadFile = File(...)):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
+    
+    # Rate Limiting State
+    import time
+    last_msg_time = 0
+    msg_burst_count = 0
+    burst_window_start = time.time()
+
     try:
         while True:
             data = await websocket.receive_json()
+            
+            # --- Rate Limiting Check ---
+            now = time.time()
+            
+            # Rule 1: Min Interval 0.1s (Machine speed check)
+            if now - last_msg_time < 0.1:
+                continue # Silently drop
+
+            # Rule 2: Burst Check (Max 10 msgs in 3 seconds)
+            if now - burst_window_start > 3.0:
+                # Reset window
+                msg_burst_count = 0
+                burst_window_start = now
+            
+            msg_burst_count += 1
+            
+            if msg_burst_count > 10:
+                # Warn user and drop
+                await websocket.send_json({
+                    "type": "chat",
+                    "country": "System",
+                    "msg": "🛑 Slow down! You are sending messages too quickly."
+                })
+                continue
+
+            last_msg_time = now
+            # ---------------------------
+
             # Expected: { "country": "KR", "msg": "Hello", "type": "chat" }
             
             msg_type = data.get("type", "chat")
