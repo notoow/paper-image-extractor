@@ -567,9 +567,10 @@ const App = {
                 if (data.history && Array.isArray(data.history)) {
                     data.history.forEach(msg => this.renderChatMessage(msg));
                 }
-            } else if (data.type === 'update_score' || data.type === 'online_count') {
-                this.renderLeaderboard(data.leaderboard);
-                // Also update online count text if needed (simulated in board title or separate logic)
+            } else if (data.type === 'update_score') {
+                if (data.leaderboard) this.renderLeaderboard(data.leaderboard);
+            } else if (data.type === 'online_count') {
+                this.updateOnlineCount(data.count, data.distribution);
             }
         };
 
