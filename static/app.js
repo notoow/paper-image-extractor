@@ -176,6 +176,38 @@ const App = {
         if (data.image_count > 0) {
             this.sendScoreEvent();
         }
+
+        // Handle PDF Preview Button
+        const dlBtn = this.ui.downloadAllBtn;
+        if (dlBtn && dlBtn.parentElement) {
+            // Clear old PDF btn
+            const oldPdfBtn = dlBtn.parentElement.querySelector('.pdf-view-btn');
+            if (oldPdfBtn) oldPdfBtn.remove();
+
+            if (data.pdf_base64) {
+                try {
+                    const byteArr = this.base64ToBytes(data.pdf_base64);
+                    const blob = new Blob([byteArr], { type: 'application/pdf' });
+                    const url = URL.createObjectURL(blob);
+
+                    const pdfBtn = document.createElement('button');
+                    pdfBtn.className = 'pdf-view-btn glass-btn'; // Use glass style
+                    pdfBtn.innerHTML = '<i class="fa-regular fa-file-pdf"></i> View Original';
+                    pdfBtn.title = 'View Sanitized PDF (Safe)';
+                    pdfBtn.onclick = () => window.open(url, '_blank');
+
+                    // Insert before Download All button
+                    dlBtn.parentElement.insertBefore(pdfBtn, dlBtn);
+                } catch (e) {
+                    console.error("Failed to create PDF blob:", e);
+                }
+            }
+        }
+    },
+
+    base64ToBytes(base64) {
+        const binString = atob(base64);
+        return Uint8Array.from(binString, (m) => m.codePointAt(0));
     },
 
     sendScoreEvent() {
