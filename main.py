@@ -280,6 +280,91 @@ async def websocket_endpoint(websocket: WebSocket):
 # --- Logic: PDF Image Extraction ---
 from utils import sanitize_and_compress_pdf, get_scihub_pdf_url, extract_images_from_pdf
 
+@app.post("/api/like")
+async def like_image(
+    file: UploadFile = File(...),
+    doi: str = Form(...),
+    country: str = Form("Unknown")
+):
+    """
+    Smart Like System:
+    - Saves image to Supabase Storage.
+    - Limits to MAX 50 images total (Rolling Buffer).
+    - If image already exists (Hash Collision) -> Update timestamp (Refresh) & Increment Likes.
+    - If new & limit reached -> Delete Oldest (Natural Selection).
+    """
+    if not supabase:
+        return JSONResponse({"status": "error", "detail": "DB not connected"}, status_code=503)
+        
+    try:
+        # 1. Calculate Hash (Deduplication)
+        content = await file.read()
+        import hashlib
+        img_hash = hashlib.sha256(content).hexdigest()
+        
+        # 2. Check if exists
+        res = supabase.table("images").select("*").eq("image_hash", img_hash).execute()
+        
+        if res.data:
+            # [HIT] Image exists -> Refresh Life & Increment
+            row_id = res.data[0]['id']
+            new_likes = res.data[0]['likes'] + 1
+            supabase.table("images").update({
+                "likes": new_likes, 
+                "created_at": "now()" # Reset expiration timer
+            }).eq("id", row_id).execute()
+            
+            return {"status": "success", "msg": "Image bumped up!", "likes": new_likes}
+        
+        else:
+            # [MISS] New Image
+            # 3. Check Limit & Cleanup Oldest
+            # Warning: accurate count might be slow on huge tables, but for 50 it's instant.
+            # Using simple query to check size is fine. 
+            # We fetch IDs to count or use head=True if supported by lib, but select count is standardized.
+            # Supabase-py select with count="exact" is best.
+            count_res = supabase.table("images").select("id", count="exact").execute()
+            current_count = count_res.count if count_res.count is not None else len(count_res.data)
+
+            if current_count >= 50:
+                # Find Oldest (Natural Selection)
+                oldest_res = supabase.table("images").select("id", "storage_path").order("created_at", desc=False).limit(1).execute()
+                if oldest_res.data:
+                    old_node = oldest_res.data[0]
+                    # Delete from Storage
+                    try:
+                        supabase.storage.from_("paper_images").remove([old_node['storage_path']])
+                    except: 
+                        pass # Ignore storage error (maybe already gone)
+                    # Delete from DB
+                    supabase.table("images").delete().eq("id", old_node['id']).execute()
+            
+            # 4. Upload New
+            file_ext = file.filename.split('.')[-1] if '.' in file.filename else "png"
+            storage_path = f"{img_hash}.{file_ext}"
+            
+            # Upload to Storage 'paper_images' bucket
+            supabase.storage.from_("paper_images").upload(
+                path=storage_path,
+                file=content,
+                file_options={"content-type": file.content_type or "image/png"}
+            )
+            
+            # Insert DB
+            supabase.table("images").insert({
+                "doi": doi,
+                "image_hash": img_hash,
+                "storage_path": storage_path,
+                "country": country,
+                "likes": 1
+            }).execute()
+            
+            return {"status": "success", "msg": "Image saved to Hall of Fame"}
+
+    except Exception as e:
+        print(f"Like Error: {e}")
+        return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
+
 @app.post("/api/process")
 async def process_doi(request: Request):
     data = await request.json()
