@@ -775,7 +775,6 @@ const App = {
             }
         }
     }
-}
 };
 window.App = App; // Expose to global scope for inline events
 document.addEventListener('DOMContentLoaded', () => App.init());
