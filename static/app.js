@@ -115,10 +115,22 @@ const App = {
 
         container.style.display = 'flex';
         container.innerHTML = history.map(doi => `
-            <div class="history-chip" onclick="document.getElementById('doiInput').value = '${doi}'; App.processDoi();">
-                <i class="fa-solid fa-clock-rotate-left"></i> ${doi}
+            <div class="history-chip">
+                <span class="history-text" onclick="document.getElementById('doiInput').value = '${doi}'; App.processDoi();">
+                    <i class="fa-solid fa-clock-rotate-left"></i> ${doi}
+                </span>
+                <button class="history-del-btn" onclick="App.deleteHistory('${doi}')" title="Remove">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
         `).join('');
+    },
+
+    deleteHistory(doi) {
+        let history = JSON.parse(localStorage.getItem('paper_history') || '[]');
+        history = history.filter(h => h !== doi);
+        localStorage.setItem('paper_history', JSON.stringify(history));
+        this.renderHistory();
     },
 
     // ... (Network & DragDrop Same)

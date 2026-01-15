@@ -1249,15 +1249,54 @@ input[type=range]:active::-webkit-slider-thumb {
     border: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0;
+    padding-right: 5px;
+    /* Less padding on right for button */
+    cursor: default;
     backdrop-filter: blur(4px);
 }
 
+.history-text {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 6px 8px 10px;
+    cursor: pointer;
+    border-radius: 20px 0 0 20px;
+    transition: background 0.2s;
+}
+
+.history-text:hover {
+    color: var(--accent);
+}
+
+.history-del-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 50%;
+    font-size: 0.8rem;
+    min-width: unset;
+    height: auto;
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.history-del-btn:hover {
+    color: #ff4757;
+    background: rgba(255, 71, 87, 0.1);
+    transform: none;
+    box-shadow: none;
+}
+
 .history-chip:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: var(--text-main);
-    transform: translateY(-2px);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
 .history-chip i {
