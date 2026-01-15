@@ -161,7 +161,16 @@ class ConnectionManager:
             if not supabase: return
             # Assume 'leaderboard' table: country, score, chat_count
             res = supabase.table("leaderboard").select("*").order("score", desc=True).limit(50).execute()
-            self.leaderboard_cache = res.data
+            
+            # Map DB columns to Frontend keys ('chat_count' -> 'chats')
+            self.leaderboard_cache = [
+                {
+                    "country": row.get("country"),
+                    "score": row.get("score", 0),
+                    "chats": row.get("chat_count", 0) # Key Mapping
+                }
+                for row in res.data
+            ]
         except Exception as e:
             print(f"Leaderboard Update Error: {e}")
 
