@@ -193,8 +193,9 @@ const App = {
     renderManualLink(data) { this.showErrorWithRescueLink("Protected Paper. Please download manually."); },
 
     renderSuccess(data) {
-        this.showStatus(`Successfully extracted ${data.image_count} images!`, 'success');
-        this.state.images = data.images;
+        const count = (data.count !== undefined) ? data.count : (data.image_count || 0);
+        this.showStatus(`Successfully extracted ${count} images!`, 'success');
+        this.state.images = data.images || [];
 
         let rawTitle = data.title || "paper";
         // SAFE FILENAME LOGIC (Updated to support Korean/Unicode)
