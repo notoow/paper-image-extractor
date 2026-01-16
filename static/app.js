@@ -560,7 +560,25 @@ const App = {
         if (this.ui.btnSpinner) this.ui.btnSpinner.style.display = isLoading ? 'flex' : 'none';
         if (isLoading && this.ui.statusMsg) { this.ui.statusMsg.innerHTML = ''; this.ui.statusMsg.className = 'status-msg'; }
     },
-    showStatus(msg, type = 'normal') { if (!this.ui.statusMsg) return; this.ui.statusMsg.textContent = msg; this.ui.statusMsg.className = `status-msg ${type}`; },
+    showStatus(msg, type = 'normal') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+
+        let icon = '<i class="fa-solid fa-circle-info"></i>';
+        if (type === 'success') icon = '<i class="fa-solid fa-check"></i>';
+        if (type === 'error') icon = '<i class="fa-solid fa-triangle-exclamation" style="color:#ff7675"></i>';
+
+        toast.innerHTML = `${icon} <span>${msg}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('toast-out');
+            toast.addEventListener('animationend', () => toast.remove());
+        }, 3000);
+    },
     resetGallery() {
         if (this.ui.gallery) this.ui.gallery.innerHTML = '';
         if (this.ui.resultSection) this.ui.resultSection.classList.remove('visible');
