@@ -1707,11 +1707,12 @@ input[type=range]:active::-webkit-slider-thumb {
     }
 
     .history-chip {
-        display: flex;
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr) max-content;
         align-items: center;
-        justify-content: space-between;
+        gap: 6px;
 
-        /* Force fixed width to prevent collapse */
+        /* Force fixed width */
         width: 48%;
         max-width: 48%;
 
@@ -1721,10 +1722,8 @@ input[type=range]:active::-webkit-slider-thumb {
     }
 
     .history-text {
+        width: 100%;
         display: block;
-        /* flex-basis: auto prevents collapse to 0px */
-        flex: 1 1 auto;
-        min-width: 0;
 
         white-space: nowrap;
         overflow: hidden;
@@ -1733,6 +1732,7 @@ input[type=range]:active::-webkit-slider-thumb {
 
         font-size: 0.8rem;
         color: var(--text-main);
+        /* Ensure visibility */
     }
 
 
