@@ -1726,16 +1726,20 @@ input[type=range]:active::-webkit-slider-thumb {
 
     .history-chip {
         padding: 4px 10px;
-        max-width: 90%;
-        /* Prevent overflow */
+        max-width: 85vw;
+        /* Use viewport relative width */
         width: fit-content;
-        /* Ensure it doesn't stretch */
         margin: 0 auto;
-        /* Center if stacked */
+        display: inline-flex;
+        /* Ensure flex behavior */
     }
 
     .history-text {
-        max-width: 200px;
+        max-width: none;
+        /* Let flex container constrain it */
+        flex: 1;
+        min-width: 0;
+        /* Allow flex child to shrink below content size */
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
