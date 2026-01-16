@@ -1708,35 +1708,34 @@ input[type=range]:active::-webkit-slider-thumb {
 
     .history-chip {
         display: flex;
-        /* Standard flex */
         align-items: center;
         justify-content: space-between;
 
-        /* Force side-by-side: max 48% width allows 2 items + gap */
+        /* Force fixed width to prevent collapse */
+        width: 48%;
         max-width: 48%;
-        width: auto;
 
         padding: 4px 8px;
         box-sizing: border-box;
         margin: 0;
-        /* Clear margins */
     }
 
     .history-text {
         display: block;
-        flex: 1;
-        /* Take available space */
+        /* flex-basis: auto prevents collapse to 0px */
+        flex: 1 1 auto;
         min-width: 0;
-        /* Allow truncation */
 
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        text-align: left;
 
         font-size: 0.8rem;
-        max-width: none;
-        /* Let parent constrain */
+        color: var(--text-main);
     }
+
+
 
     /* 5. Result Gallery (Prevent Overflow) */
     .result-section {
