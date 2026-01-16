@@ -120,13 +120,19 @@ const App = {
             // Strip https://doi.org/ prefix for display
             const displayDoi = doi.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//i, '');
 
+            // Manual Start Truncation: Show last 19 chars if longer than 22
+            let truncatedDoi = displayDoi;
+            if (displayDoi.length > 22) {
+                truncatedDoi = '...' + displayDoi.slice(-19);
+            }
+
             return `
             <div class="history-chip">
                 <span class="history-text" 
                       title="${doi} (Right-click to copy)" 
                       onclick="document.getElementById('doiInput').value = '${doi}'; App.processDoi();"
                       oncontextmenu="event.preventDefault(); navigator.clipboard.writeText('${doi}'); App.showStatus('DOI Copied to Clipboard! 📋', 'success');">
-                    <i class="fa-solid fa-clock-rotate-left"></i> ${displayDoi}
+                    <i class="fa-solid fa-clock-rotate-left"></i> ${truncatedDoi}
                 </span>
                 <button class="history-del-btn" onclick="App.deleteHistory('${doi}')" title="Remove">
                     <i class="fa-solid fa-xmark"></i>
