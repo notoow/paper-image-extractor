@@ -1723,6 +1723,8 @@ input[type=range]:active::-webkit-slider-thumb {
     }
 
     .history-text {
+        min-width: 0;
+        /* Critical for Grid truncation */
         width: 100%;
         display: block;
         white-space: nowrap;
