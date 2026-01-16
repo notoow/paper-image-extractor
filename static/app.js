@@ -116,16 +116,24 @@ const App = {
         }
 
         container.style.display = 'flex';
-        container.innerHTML = history.map(doi => `
+        container.innerHTML = history.map(doi => {
+            // Strip https://doi.org/ prefix for display
+            const displayDoi = doi.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//i, '');
+
+            return `
             <div class="history-chip">
-                <span class="history-text" onclick="document.getElementById('doiInput').value = '${doi}'; App.processDoi();">
-                    <i class="fa-solid fa-clock-rotate-left"></i> ${doi}
+                <span class="history-text" 
+                      title="${doi} (Right-click to copy)" 
+                      onclick="document.getElementById('doiInput').value = '${doi}'; App.processDoi();"
+                      oncontextmenu="event.preventDefault(); navigator.clipboard.writeText('${doi}'); App.showStatus('DOI Copied to Clipboard! 📋', 'success');">
+                    <i class="fa-solid fa-clock-rotate-left"></i> ${displayDoi}
                 </span>
                 <button class="history-del-btn" onclick="App.deleteHistory('${doi}')" title="Remove">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-        `).join('');
+            `;
+        }).join('');
     },
 
     deleteHistory(doi) {
