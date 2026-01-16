@@ -795,7 +795,13 @@ const App = {
                 this.showStatus('Added to Hall of Fame! 🏆', 'success');
                 this.state.trendingDirty = true; // Mark for refresh
 
-                // Optional: Confetti or sound effect here
+                // IMMEDIATE REFRESH if tab is active
+                const trendingView = document.getElementById('view-trending');
+                if (trendingView && trendingView.classList.contains('active')) {
+                    const activeChip = document.querySelector('.filter-chip.active');
+                    this.fetchTrending(activeChip ? activeChip.dataset.period : 'all');
+                    this.state.trendingDirty = false;
+                }
             }
         } catch (e) {
             this.showStatus('Failed to like image.', 'error');
