@@ -1630,140 +1630,138 @@ input[type=range]:active::-webkit-slider-thumb {
 }
 
 /* --- Mobile Optimizations --- */
+/* --- Mobile Optimizations (Refined) --- */
 @media (max-width: 600px) {
-    .container {
-        padding: 10px;
-        max-width: 100%;
+
+    /* 1. Global Container Fixes */
+    body {
+        overflow-x: hidden;
     }
 
+    .container {
+        padding: 15px;
+        max-width: 100%;
+        width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    /* 2. Header Compact */
     .header {
-        margin-top: 20px;
+        margin-top: 10px;
         margin-bottom: 20px;
     }
 
     .header h1 {
-        font-size: 2rem;
-        margin-bottom: 5px;
+        font-size: 2.2rem;
     }
 
-    .header p {
-        font-size: 0.9rem;
-    }
-
+    /* 3. Search Box Compact */
     .search-box {
-        padding: 15px;
-        margin-bottom: 20px;
+        padding: 20px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .input-group {
         flex-direction: column;
-        gap: 10px;
+        width: 100%;
     }
 
     .input-group input {
         width: 100%;
+        box-sizing: border-box;
     }
 
     #extractBtn {
         width: 100%;
         margin-left: 0;
+        margin-top: 10px;
     }
 
-    .result-section {
-        padding: 15px;
-    }
-
-    .result-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
-    }
-
-    .header-right {
-        width: 100%;
-        justify-content: space-between;
-    }
-
-    .gallery {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 10px;
-    }
-
-    /* Social Hub Mobile */
-    .chat-container {
-        width: 92%;
-        right: 4%;
-        bottom: 80px;
-        height: 60vh;
-    }
-
-    .trending-grid {
-        grid-template-columns: repeat(3, 1fr);
-        /* Denser grid */
-        gap: 6px;
-        padding: 5px;
-    }
-
-    .trending-item {
-        border-radius: 8px;
-        box-shadow: 1px 1px 3px rgba(163, 177, 198, 0.3);
-    }
-
-    .trending_like-btn {
-        width: 24px;
-        height: 24px;
-        font-size: 0.7rem;
-        bottom: 3px;
-        right: 3px;
-    }
-
-    .like-count {
-        font-size: 0.6rem;
-        bottom: 3px;
-        left: 3px;
-        padding: 1px 3px;
-    }
-
-    .history-chip {
-        padding: 4px 10px;
-        max-width: 85vw;
-        /* Use viewport relative width */
-        width: fit-content;
-        margin: 0 auto;
-        display: inline-flex;
-        /* Ensure flex behavior */
-    }
-
-    .history-text {
-        max-width: none;
-        /* Let flex container constrain it */
-        flex: 1;
-        min-width: 0;
-        /* Allow flex child to shrink below content size */
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
+    /* 4. History Chips (Fix Visibility & Layout) */
     .search-history {
         flex-direction: column;
         align-items: center;
+        gap: 8px;
+        width: 100%;
     }
 
-    /* Fix Footer Buttons Overflow */
-    .action-buttons {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
+    .history-chip {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        max-width: 100%;
+        padding: 6px 12px;
+        box-sizing: border-box;
+    }
+
+    .history-text {
+        display: block;
+        max-width: 200px;
+        /* Safe fixed limit */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.85rem;
+    }
+
+    /* 5. Result Gallery (Prevent Overflow) */
+    .result-section {
+        padding: 0;
+        margin-top: 30px;
+    }
+
+    .gallery {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        /* Force 2 columns */
+        gap: 10px;
         width: 100%;
-        margin-top: 20px;
+        padding: 5px;
+        box-sizing: border-box;
+    }
+
+    .img-card {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+    }
+
+    .img-wrapper {
+        height: 140px;
+    }
+
+    /* Smaller images */
+    .img-wrapper img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    /* 6. Footer Buttons (Stack Vertical) */
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
     }
 
     .action-buttons .neumorphic-btn {
         width: 100%;
-        box-sizing: border-box;
-        text-align: center;
         justify-content: center;
-        /* Center icon/text */
+    }
+
+    /* 7. Social / Trending Mobile */
+    .chat-container {
+        width: 94%;
+        right: 3%;
+        left: 3%;
+        bottom: 80px;
+        height: 55vh;
+    }
+
+    .trending-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
     }
 }

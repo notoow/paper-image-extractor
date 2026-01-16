@@ -412,17 +412,12 @@ async def like_image(
             }).execute()
 
             # --- IMMEDIATE CLEANUP (Strict 50 Limits) ---
-            # Check if we exceeded 50 items
-            res = supabase.table("images").select("id", "storage_path", "likes").order("likes", desc=True).limit(51).execute()
-            if len(res.data) > 50:
-                victim = res.data[-1] # The 51st item (lowest rank)
-                print(f"Cleanup: Removing 51st image (ID: {victim['id']}, Likes: {victim['likes']})")
-                
-                # 1. Delete from Storage
-                supabase.storage.from_("paper_images").remove([victim['storage_path']])
-                
-                # 2. Delete from DB
-                supabase.table("images").delete().eq("id", victim['id']).execute()
+            # Relaxed for now to allow new uploads to survive even if they start with 1 like
+            # res = supabase.table("images").select("id", "storage_path", "likes").order("likes", desc=True).limit(51).execute()
+            # if len(res.data) > 200: # Increased limit significantly
+            #     victim = res.data[-1] 
+            #     supabase.storage.from_("paper_images").remove([victim['storage_path']])
+            #     supabase.table("images").delete().eq("id", victim['id']).execute()
             
             return {"status": "success", "msg": "Image saved to Hall of Fame"}
 
