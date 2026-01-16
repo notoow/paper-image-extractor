@@ -392,14 +392,24 @@ async def like_image(
                     supabase.table("images").delete().eq("id", old_node['id']).execute()
             
             # 4. Upload New
-            file_ext = file.filename.split('.')[-1] if '.' in file.filename else "png"
+            file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else "png"
             storage_path = f"{img_hash}.{file_ext}"
+            
+            # Map clean mime type
+            mime_map = {
+                "png": "image/png",
+                "jpg": "image/jpeg",
+                "jpeg": "image/jpeg",
+                "gif": "image/gif",
+                "webp": "image/webp"
+            }
+            content_type = mime_map.get(file_ext, "image/png")
             
             # Upload to Storage 'paper_images' bucket
             supabase.storage.from_("paper_images").upload(
                 path=storage_path,
                 file=content,
-                file_options={"content-type": file.content_type or "image/png"}
+                file_options={"content-type": content_type}
             )
             
             # Insert DB
