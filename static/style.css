@@ -1211,6 +1211,34 @@ input[type=range]:active::-webkit-slider-thumb {
         height: 75vh;
         /* More vertical space */
         border-radius: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Compact Inner Elements for Mobile */
+    .chat-container .chat-header {
+        padding: 10px 15px;
+    }
+
+    .chat-container .social-tabs {
+        padding: 5px 15px 0 15px;
+    }
+
+    .chat-container .chat-rank {
+        padding: 6px 10px;
+        min-height: auto;
+    }
+
+    .chat-container .rank-item {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+
+    /* Ensure message list grows */
+    .chat-container .chat-messages {
+        flex: 1;
+        min-height: 0;
+        padding: 10px;
     }
 
     /* Helper for PDF/Sort buttons */
