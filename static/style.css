@@ -1239,47 +1239,52 @@ input[type=range]:active::-webkit-slider-thumb {
 }
 
 .history-chip {
-    background: rgba(255, 255, 255, 0.6);
-    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    /* Revert to faint */
+    padding: 6px 14px;
+    /* Restore padding */
     border-radius: 20px;
-    font-size: 0.85rem;
-    color: var(--text-main);
-    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--text-light);
+    /* Restore color */
+    cursor: default;
     transition: all 0.2s;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    box-shadow: 2px 2px 6px rgba(163, 177, 198, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
+    /* Keep layout fix */
     align-items: center;
     justify-content: space-between;
-    /* Default for desktop too */
+    /* Stick to ends */
     gap: 6px;
-    padding-right: 6px;
-    cursor: default;
+    width: auto;
     backdrop-filter: blur(4px);
 }
 
 .history-text {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 6px;
-    cursor: pointer;
-    border-radius: 15px;
-    color: var(--text-main);
-    font-weight: 500;
+    flex: 1;
+    /* Take space */
+    min-width: 0;
+    /* Allow truncation */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 4px;
+    border-radius: 6px;
     transition: background 0.2s;
+    color: inherit;
+    display: block;
+    /* Simpler display */
 }
 
 .history-text:hover {
-    background: rgba(109, 93, 252, 0.1);
     color: var(--accent);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .history-del-btn {
     background: transparent;
     border: none;
     color: var(--text-light);
-    /* Allow x to be lighter until hover */
     cursor: pointer;
     padding: 6px;
     border-radius: 50%;
@@ -1291,6 +1296,7 @@ input[type=range]:active::-webkit-slider-thumb {
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
+    flex-shrink: 0;
 }
 
 .history-del-btn:hover {
@@ -1300,16 +1306,17 @@ input[type=range]:active::-webkit-slider-thumb {
 }
 
 .history-chip:hover {
-    transform: translateY(-1px);
-    box-shadow: 4px 4px 10px rgba(163, 177, 198, 0.3);
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
-.history-chip i.fa-clock-rotate-left {
-    color: var(--accent);
+.history-chip i {
+    /* Generic i selector to catch clock */
     font-size: 0.9em;
-    opacity: 0.8;
+    opacity: 0.7;
+    flex-shrink: 0;
 }
+
 
 /* --- Version 2.0: Social Tabs & Trending Gallery --- */
 
