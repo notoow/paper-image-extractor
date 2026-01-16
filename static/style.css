@@ -1713,9 +1713,9 @@ input[type=range]:active::-webkit-slider-thumb {
         align-items: center;
         gap: 6px;
 
-        /* Force fixed width */
-        width: 48%;
-        max-width: 48%;
+        /* Safer width calc for 2-column with gap */
+        width: calc(50% - 6px);
+        min-width: 0;
 
         padding: 4px 8px;
         box-sizing: border-box;
@@ -1724,13 +1724,16 @@ input[type=range]:active::-webkit-slider-thumb {
 
     .history-text {
         min-width: 0;
-        /* Critical for Grid truncation */
         width: 100%;
         display: block;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+
+        /* Truncate at START (...) */
+        direction: rtl;
         text-align: left;
+
         font-size: 0.8rem;
         color: var(--text-main);
     }
