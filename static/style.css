@@ -1708,7 +1708,8 @@ input[type=range]:active::-webkit-slider-thumb {
 
     .history-chip {
         display: grid;
-        grid-template-columns: max-content minmax(0, 1fr) max-content;
+        grid-template-columns: max-content minmax(0, 1fr) 24px;
+        /* Fixed button slot */
         align-items: center;
         gap: 6px;
 
@@ -1724,15 +1725,22 @@ input[type=range]:active::-webkit-slider-thumb {
     .history-text {
         width: 100%;
         display: block;
-
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         text-align: left;
-
         font-size: 0.8rem;
         color: var(--text-main);
-        /* Ensure visibility */
+    }
+
+    .history-del-btn {
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        padding: 0 !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
 
