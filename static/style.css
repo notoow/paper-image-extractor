@@ -1680,35 +1680,47 @@ input[type=range]:active::-webkit-slider-thumb {
     }
 
     /* 4. History Chips (Fix Visibility & Layout) */
+    /* 4. History Chips (Force 2-per-row Layout) */
+    .search-history {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        margin-top: 15px;
+    }
+
     .history-chip {
-        display: inline-flex;
+        display: flex;
+        /* Standard flex */
         align-items: center;
-        width: fit-content;
-        max-width: 90%;
-        padding: 4px 10px;
+        justify-content: space-between;
+
+        /* Force side-by-side: max 48% width allows 2 items + gap */
+        max-width: 48%;
+        width: auto;
+
+        padding: 4px 8px;
         box-sizing: border-box;
+        margin: 0;
+        /* Clear margins */
     }
 
     .history-text {
         display: block;
+        flex: 1;
+        /* Take available space */
+        min-width: 0;
+        /* Allow truncation */
+
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
-        max-width: 60vw;
-        flex: 0 1 auto;
-        /* Do NOT grow, keep 'X' close */
-        font-size: 0.85rem;
-    }
 
-    /* 4. History Chips (Fix Visibility & Layout) */
-    .search-history {
-        flex-direction: row;
-        /* Allow side-by-side if fits */
-        flex-wrap: wrap;
-        /* Wrap if too long */
-        justify-content: center;
-        gap: 8px;
-        width: 100%;
+        font-size: 0.8rem;
+        max-width: none;
+        /* Let parent constrain */
     }
 
     /* 5. Result Gallery (Prevent Overflow) */
