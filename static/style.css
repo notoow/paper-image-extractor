@@ -1756,15 +1756,27 @@ input[type=range]:active::-webkit-slider-thumb {
         object-fit: contain;
     }
 
-    /* 6. Footer Buttons (Stack Vertical) */
+    /* 6. Footer Buttons (Stack Vertical & Fix Overflow) */
     .action-buttons {
+        display: flex;
+        /* Ensure it's flex */
         flex-direction: column;
         width: 100%;
-        gap: 10px;
+        gap: 12px;
+        margin-top: 20px;
+        box-sizing: border-box;
+        /* Important */
     }
 
+    /* Target the specific buttons to ensure they don't overflow */
     .action-buttons .neumorphic-btn {
         width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        /* Include padding in width */
+        min-width: 0;
+        margin: 0;
+        display: flex;
         justify-content: center;
     }
 
