@@ -97,7 +97,7 @@ const App = {
         let history = JSON.parse(localStorage.getItem('paper_history') || '[]');
         history = history.filter(h => h !== doi);
         history.unshift(doi);
-        if (history.length > 5) history.pop();
+        if (history.length > 2) history.pop(); // Limit to 2 as requested
         localStorage.setItem('paper_history', JSON.stringify(history));
         this.renderHistory();
     },
@@ -106,7 +106,9 @@ const App = {
         const container = document.getElementById('searchHistory');
         if (!container) return;
 
-        const history = JSON.parse(localStorage.getItem('paper_history') || '[]');
+        let history = JSON.parse(localStorage.getItem('paper_history') || '[]');
+        // Enforce limit strictly for display
+        if (history.length > 2) history = history.slice(0, 2);
 
         if (history.length === 0) {
             container.style.display = 'none';
@@ -632,7 +634,9 @@ const App = {
             const isEmpty = grid && (!grid.children.length || grid.querySelector('.loading-state'));
 
             if (isEmpty || this.state.trendingDirty) {
-                this.fetchTrending('all');
+                const activeChip = document.querySelector('.filter-chip.active');
+                const period = activeChip ? activeChip.dataset.period : 'all';
+                this.fetchTrending(period);
                 this.state.trendingDirty = false;
             }
         }
@@ -640,10 +644,13 @@ const App = {
 
     async fetchTrending(period) {
         const grid = document.getElementById('trendingGrid');
-        if (grid) grid.innerHTML = '<div class="loading-state"><div class="spinner" style="display:block; margin: 20px auto;"></div><p>Refining selection...</p></div>';
+        if (grid && (!grid.children.length || this.state.trendingDirty)) {
+            grid.innerHTML = '<div class="loading-state"><div class="spinner" style="display:block; margin: 20px auto;"></div><p>Refining selection...</p></div>';
+        }
 
         try {
-            const res = await fetch(`/api/trending?period=${period}`);
+            // Cache busting
+            const res = await fetch(`/api/trending?period=${period}&_=${Date.now()}`);
             const data = await res.json();
             if (data.status === 'success') {
                 this.renderTrending(data.images);
