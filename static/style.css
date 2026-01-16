@@ -1726,6 +1726,12 @@ input[type=range]:active::-webkit-slider-thumb {
 
     .history-chip {
         padding: 4px 10px;
+        max-width: 90%;
+        /* Prevent overflow */
+        width: fit-content;
+        /* Ensure it doesn't stretch */
+        margin: 0 auto;
+        /* Center if stacked */
     }
 
     .history-text {
@@ -1733,5 +1739,12 @@ input[type=range]:active::-webkit-slider-thumb {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .search-history {
+        flex-direction: column;
+        /* Stack history on mobile for neatness ? */
+        align-items: center;
+        /* Center them */
     }
 }
