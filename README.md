@@ -1,5 +1,5 @@
 ---
-title: "Paper Prism: Paper Image Extractor"
+title: "Paper Prism - Paper Image Extractor"
 emoji: 📑
 colorFrom: blue
 colorTo: indigo
