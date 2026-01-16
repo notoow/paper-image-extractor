@@ -1743,8 +1743,23 @@ input[type=range]:active::-webkit-slider-thumb {
 
     .search-history {
         flex-direction: column;
-        /* Stack history on mobile for neatness ? */
         align-items: center;
-        /* Center them */
+    }
+
+    /* Fix Footer Buttons Overflow */
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        width: 100%;
+        margin-top: 20px;
+    }
+
+    .action-buttons .neumorphic-btn {
+        width: 100%;
+        box-sizing: border-box;
+        text-align: center;
+        justify-content: center;
+        /* Center icon/text */
     }
 }
