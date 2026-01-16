@@ -1262,18 +1262,19 @@ input[type=range]:active::-webkit-slider-thumb {
 
 .history-text {
     flex: 1;
-    /* Take space */
     min-width: 0;
-    /* Allow truncation */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     padding: 4px;
     border-radius: 6px;
     transition: background 0.2s;
-    color: inherit;
+    color: var(--text-main);
+    /* Darker text */
     display: block;
-    /* Simpler display */
+    text-align: left;
+    /* Alignment */
+    font-weight: 500;
 }
 
 .history-text:hover {
