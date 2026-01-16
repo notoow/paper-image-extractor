@@ -635,6 +635,16 @@ const App = {
             });
         });
 
+        // Close Chat when clicking outside
+        document.addEventListener('click', (e) => {
+            const container = document.getElementById('chatContainer');
+            const toggle = document.getElementById('chatToggle');
+
+            if (this.state.chatOpen && container && !container.contains(e.target) && toggle && !toggle.contains(e.target)) {
+                this.toggleChat();
+            }
+        });
+
         this.connectWS();
     },
 
