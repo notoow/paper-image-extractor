@@ -1852,11 +1852,26 @@ input[type=range]:active::-webkit-slider-thumb {
 
     /* 7. Social / Trending Mobile */
     .chat-container {
-        width: 94%;
-        right: 3%;
-        left: 3%;
-        bottom: 80px;
-        height: 55vh;
+        /* Full Screen Overlay - Final Override */
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100% !important;
+        height: 100% !important;
+        height: 100dvh !important;
+        max-height: none !important;
+        margin: 0;
+        border-radius: 0 !important;
+        display: flex;
+        flex-direction: column;
+        z-index: 20000;
+        background: var(--bg-color);
+    }
+
+    .chat-container .chat-input-area {
+        padding-bottom: calc(15px + env(safe-area-inset-bottom));
     }
 
     .trending-grid {
