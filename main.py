@@ -112,6 +112,56 @@ async def rate_limit_middleware(request: Request, call_next):
     response = await call_next(request)
     return response
 
+# --- Vote Manager (Server-Side Dedup) ---
+import json
+import hashlib
+
+class VoteManager:
+    def __init__(self, filename="votes.json"):
+        self.filename = filename
+        self.votes = self._load() # Structure: { "image_id_str": ["hash_ip1", "hash_ip2"] }
+
+    def _load(self):
+        if os.path.exists(self.filename):
+            try:
+                with open(self.filename, 'r') as f:
+                    return json.load(f)
+            except:
+                return {}
+        return {}
+
+    def _save(self):
+        try:
+            with open(self.filename, 'w') as f:
+                json.dump(self.votes, f)
+        except Exception as e:
+            print(f"Vote Save Error: {e}")
+
+    def hash_ip(self, ip: str) -> str:
+        return hashlib.sha256(ip.encode()).hexdigest()[:16] # Short hash
+
+    def has_voted(self, image_id: str, ip: str) -> bool:
+        img_key = str(image_id)
+        if img_key not in self.votes:
+            return False
+        ip_hash = self.hash_ip(ip)
+        return ip_hash in self.votes[img_key]
+
+    def register_vote(self, image_id: str, ip: str):
+        img_key = str(image_id)
+        ip_hash = self.hash_ip(ip)
+        
+        if img_key not in self.votes:
+            self.votes[img_key] = []
+        
+        if ip_hash not in self.votes[img_key]:
+            self.votes[img_key].append(ip_hash)
+            self._save()
+            return True
+        return False
+
+vote_manager = VoteManager()
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -359,10 +409,14 @@ from utils import sanitize_and_compress_pdf, get_pdf_from_scihub_advanced
 
 @app.post("/api/like")
 async def like_image(
+    request: Request,
     file: UploadFile = File(...),
     doi: str = Form(...),
     country: str = Form("Unknown")
 ):
+    # Get IP for deduplication
+    forwarded = request.headers.get("X-Forwarded-For")
+    client_ip = forwarded.split(",")[0] if forwarded else request.client.host
     # ... (Keep existing implementation of like_image) ...
     """
     Smart Like System:
@@ -384,13 +438,21 @@ async def like_image(
         res = supabase.table("images").select("*").eq("image_hash", img_hash).execute()
         
         if res.data:
-            # [HIT] Image exists -> Refresh Life & Increment
+            # [HIT] Image exists
             row_id = res.data[0]['id']
+            # Check if this IP already voted/uploaded this image
+            if vote_manager.has_voted(row_id, client_ip):
+                 return {"status": "success", "msg": "Already in Hall of Fame!", "likes": res.data[0]['likes'], "id": row_id}
+
+            # If not voted, count as a new like (Bump)
             new_likes = res.data[0]['likes'] + 1
             supabase.table("images").update({
                 "likes": new_likes, 
                 "created_at": "now()" # Reset expiration timer
             }).eq("id", row_id).execute()
+            
+            # Register vote
+            vote_manager.register_vote(row_id, client_ip)
             
             return {"status": "success", "msg": "Image bumped up!", "likes": new_likes, "id": row_id}
         
@@ -449,6 +511,10 @@ async def like_image(
             
             # Get ID of inserted row
             new_id = res.data[0]['id'] if res.data else None
+            
+            # Register Uploder's Vote (Initial 1 like)
+            if new_id:
+                vote_manager.register_vote(new_id, client_ip)
 
             # --- IMMEDIATE CLEANUP (Strict 50 Limits) ---
             # Relaxed for now to allow new uploads to survive even if they start with 1 like
@@ -476,6 +542,13 @@ async def vote_image(request: Request):
         
         if not img_id:
              return JSONResponse({"status": "error", "detail": "ID required"}, status_code=400)
+        
+        # IP Dedup Check
+        forwarded = request.headers.get("X-Forwarded-For")
+        client_ip = forwarded.split(",")[0] if forwarded else request.client.host
+        
+        if vote_manager.has_voted(img_id, client_ip):
+            return JSONResponse({"status": "error", "detail": "You already voted for this image."}, status_code=403)
              
         # Increment Likes
         # We need to fetch current likes first (or use an RPC if available, but simple select-update is safer for now)
