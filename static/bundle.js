@@ -165,6 +165,7 @@ const App = {
     },
 
     async processDoi() {
+        alert('Debug: Starting Request...');
         const doi = this.ui.doiInput.value.trim();
         if (!doi) { this.showStatus('Please enter a DOI.', 'error'); return; }
         this.setLoading(true);
