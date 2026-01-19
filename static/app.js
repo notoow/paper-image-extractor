@@ -751,6 +751,24 @@ const App = {
                 <img src="${imgUrl}" loading="lazy" alt="Trending">
             `;
 
+            // DOI Pill
+            if (img.doi && img.doi.length > 5) {
+                const doiPill = document.createElement('div');
+                doiPill.className = 'doi-pill';
+                doiPill.innerHTML = `<i class="fa-solid fa-flask"></i> ${img.doi}`;
+                doiPill.title = "Click to Extract this Paper!";
+                doiPill.onclick = (e) => {
+                    e.stopPropagation();
+                    this.ui.doiInput.value = img.doi;
+                    this.processDoi();
+                    // Close chat/trending view on mobile if needed? 
+                    // Ideally scroll to top
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    if (window.innerWidth < 768) this.toggleChat(); // Close chat on mobile
+                };
+                item.appendChild(doiPill);
+            }
+
             item.appendChild(countSpan);
             item.appendChild(likeBtn);
 

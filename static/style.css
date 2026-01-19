@@ -1138,6 +1138,40 @@ input[type=range]:active::-webkit-slider-thumb {
 }
 
 /* --- Mobile Responsiveness --- */
+
+/* DOI Pill Style */
+.doi-pill {
+    margin-top: 8px;
+    padding: 6px 12px;
+    border-radius: 15px;
+    background: rgba(109, 93, 252, 0.1);
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(109, 93, 252, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+    backdrop-filter: blur(4px);
+}
+
+.doi-pill:hover {
+    background: var(--accent);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(109, 93, 252, 0.3);
+}
+
+.doi-pill i {
+    font-size: 0.85rem;
+}
 @media (max-width: 768px) {
     .container {
         padding: 20px;

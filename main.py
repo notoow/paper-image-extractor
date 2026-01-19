@@ -605,7 +605,7 @@ async def get_trending(period: str = "all"):
         return {"status": "error", "images": []}
         
     try:
-        query = supabase.table("images").select("*").order("likes", desc=True).limit(50)
+        query = supabase.table("images").select("id, likes, storage_path, created_at, width, height, doi").order("likes", desc=True).limit(50)
         import datetime
         now = datetime.datetime.utcnow()
         if period == "week": query = query.gte("created_at", (now - datetime.timedelta(days=7)).isoformat())
@@ -617,6 +617,8 @@ async def get_trending(period: str = "all"):
         for row in res.data:
             # No path traversal possibility here as it comes from DB
             row['url'] = f"{settings.supabase_url}/storage/v1/object/public/paper_images/{row['storage_path']}"
+            # Ensure DOI is passed
+            if 'doi' not in row: row['doi'] = ""
             images.append(row)
         return {"status": "success", "images": images}
     except Exception as e:
