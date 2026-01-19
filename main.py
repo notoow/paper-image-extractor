@@ -456,12 +456,17 @@ async def websocket_endpoint(websocket: WebSocket):
 async def process_doi(req: DoiRequest): # Validated by Pydantic
     try:
         logger.info(f"Processing DOI: {req.doi}") # Audit
+        logger.info("Starting Sci-Hub download...")
         pdf_bytes, result_msg = await run_in_threadpool(get_pdf_from_scihub_advanced, req.doi)
+        logger.info(f"Download Finished. Result: {result_msg[:50]}...")
         
         if not pdf_bytes:
+             logger.warning(f"PDF Not Found: {req.doi}")
              raise HTTPException(status_code=404, detail=result_msg)
         
+        logger.info(f"PDF Downloaded ({len(pdf_bytes)} bytes). Starting extraction...")
         result = await run_in_threadpool(extract_from_bytes, pdf_bytes)
+        logger.info(f"Extraction Finished. Status: {result.get('status')}")
         
         if result["status"] == "success":
             result["doi"] = req.doi
