@@ -147,10 +147,12 @@ def get_pdf_from_scihub_advanced(doi: str):
     Returns: (bytes, title) OR (None, error_msg)
     """
     mirrors = [
-        "https://sci-hub.se",
+        "https://sci-hub.hlgczx.com",
         "https://sci-hub.st",
+        "https://sci-hub.se",
         "https://sci-hub.ru",
-        "https://sci-hub.do"
+        "https://sci-hub.do",
+        "https://www.sci-hub.in"
     ]
     
     clean_doi = doi.strip()
@@ -174,13 +176,27 @@ def get_pdf_from_scihub_advanced(doi: str):
                 soup = BeautifulSoup(res.content, 'html.parser')
                 pdf_url = None
                 
-                # Check for various PDF locations
-                iframe = soup.find('iframe', id='pdf') or soup.find('embed', id='pdf')
+                # 1. Try iframe or embed (Classic Sci-Hub)
+                iframe = soup.find('iframe', id='pdf') or soup.find('embed', id='pdf') or soup.find('object', id='pdf')
                 if iframe and iframe.get('src'):
                     pdf_url = iframe['src']
+                elif iframe and iframe.get('data'):
+                    pdf_url = iframe['data']
                 
+                # 2. Try object tag specifically (Newer mirrors)
                 if not pdf_url:
-                    # Look for any link or button that might look like a PDF download
+                    obj = soup.find('object', data=re.compile(r'\.pdf'))
+                    if obj:
+                        pdf_url = obj['data']
+                
+                # 3. Try direct download link (e.g., div.download a)
+                if not pdf_url:
+                    download_link = soup.select_one('div.download a[href]') or soup.select_one('a[href*="download"]') or soup.select_one('a[href*=".pdf"]')
+                    if download_link:
+                        pdf_url = download_link['href']
+
+                # 4. Try button with location.href
+                if not pdf_url:
                     btn = soup.select_one('button[onclick*="location.href"]')
                     if btn:
                         match = re.search(r"location\.href='([^']+)'", btn['onclick'])
@@ -192,7 +208,12 @@ def get_pdf_from_scihub_advanced(doi: str):
                     if pdf_url.startswith('//'):
                         pdf_url = 'https:' + pdf_url
                     elif not pdf_url.startswith('http'):
-                        pdf_url = mirror.rstrip('/') + '/' + pdf_url.lstrip('/')
+                        # Handle relative paths properly
+                        base_mirror = mirror.rstrip('/')
+                        if pdf_url.startswith('/'):
+                            pdf_url = base_mirror + pdf_url
+                        else:
+                            pdf_url = base_mirror + '/' + pdf_url
                     
                     logger.info(f"Fetching final PDF: {pdf_url}")
                     pdf_res = requests.get(pdf_url, headers=headers, timeout=25, verify=False)
@@ -207,6 +228,7 @@ def get_pdf_from_scihub_advanced(doi: str):
                         return pdf_res.content, title
                     else:
                         logger.warning(f"Response not a valid PDF or status {pdf_res.status_code}")
+                        pdf_url = None # Reset to try next pattern/mirror
                 else:
                     logger.warning(f"No PDF URL found in soup for {mirror}")
         except Exception as e:
