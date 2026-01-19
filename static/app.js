@@ -168,7 +168,7 @@ const App = {
         const doi = this.ui.doiInput.value.trim();
         if (!doi) { this.showStatus('Please enter a DOI.', 'error'); return; }
         this.setLoading(true);
-        this.showStatus('');
+        // this.showStatus('');
         this.resetGallery();
         try {
             const response = await fetch('/api/process', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doi: doi }) });
@@ -722,6 +722,14 @@ const App = {
             const likeBtn = document.createElement('button');
             likeBtn.className = 'trending_like-btn';
             likeBtn.innerHTML = `<i class="fa-solid fa-heart"></i>`;
+
+            // Check if user (local) already liked this
+            let myLikes = [];
+            try { myLikes = JSON.parse(localStorage.getItem('my_liked_ids') || '[]'); } catch (e) { }
+            if (myLikes.includes(img.id)) {
+                likeBtn.classList.add('liked');
+            }
+
             likeBtn.onclick = (e) => {
                 e.stopPropagation();
                 if (likeBtn.classList.contains('liked')) return;
@@ -765,6 +773,12 @@ const App = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: id })
             });
+            // Persist valid vote locally
+            let myLikes = JSON.parse(localStorage.getItem('my_liked_ids') || '[]');
+            if (!myLikes.includes(id)) {
+                myLikes.push(id);
+                localStorage.setItem('my_liked_ids', JSON.stringify(myLikes));
+            }
             // Success
         } catch (e) {
             console.error("Vote failed", e);
@@ -772,6 +786,13 @@ const App = {
     },
 
     async likeImageFromSearch(img) {
+        // Find the heart button that was clicked (hacky but effective if we passed it, but here we don't have reference)
+        // Check renderGallery -> it calls likeImageFromSearch(img). 
+        // We should add loading feedback via toast first since we don't have the button ref here (unless we pass it).
+        // Actually renderGallery calls this... let's just use showStatus for loading.
+
+        this.showStatus('Adding to Hall of Fame... ⏳', 'normal');
+
         // Convert Base64 -> Blob -> File
         try {
             const fetchRes = await fetch(img.base64);
@@ -793,6 +814,16 @@ const App = {
             // Show toast/confetti?
             if (data.status === 'success') {
                 this.showStatus('Added to Hall of Fame! 🏆', 'success');
+
+                // Save to local storage so it shows as liked
+                if (data.id) {
+                    let myLikes = JSON.parse(localStorage.getItem('my_liked_ids') || '[]');
+                    if (!myLikes.includes(data.id)) {
+                        myLikes.push(data.id);
+                        localStorage.setItem('my_liked_ids', JSON.stringify(myLikes));
+                    }
+                }
+
                 this.state.trendingDirty = true; // Mark for refresh
 
                 // IMMEDIATE REFRESH if tab is active

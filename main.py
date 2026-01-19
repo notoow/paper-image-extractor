@@ -212,6 +212,27 @@ class ConnectionManager:
             "distribution": dist_str
         })
 
+    def _update_cache_optimistically(self, country, score_inc=0, chat_inc=0):
+        # Find and update in cache
+        found = False
+        for item in self.leaderboard_cache:
+            if item["country"] == country:
+                item["score"] += score_inc
+                item["chats"] += chat_inc
+                found = True
+                break
+        
+        # If not found (new country), add it
+        if not found:
+            self.leaderboard_cache.append({
+                "country": country,
+                "score": score_inc,
+                "chats": chat_inc
+            })
+            
+        # Re-sort
+        self.leaderboard_cache.sort(key=lambda x: x["score"], reverse=True)
+
     async def broadcast(self, message: dict):
         # 1. Send to all WS
         await self.broadcast_internal(message)
@@ -246,7 +267,7 @@ class ConnectionManager:
                 # Update Leaderboard (Score)
                 self._upsert_stats(country, score_inc=1)
                 
-            # Refresh Cache
+            # Refresh Cache from DB (Source of Truth) to ensure consistency eventually
             self._update_leaderboard_cache()
 
         except Exception as e:
@@ -305,21 +326,26 @@ async def websocket_endpoint(websocket: WebSocket):
             if msg_type == "chat":
                 msg = data.get("msg", "").strip() # ... existing logic
                 if msg:
-                     # Broadcast updates cache & DB, then sends to all
+                    # Optimistic Update
+                    manager._update_cache_optimistically(country, chat_inc=1)
+                    
+                    # Broadcast updates cache & DB, then sends to all
                     await manager.broadcast({
                         "type": "chat",
                         "country": country,
                         "msg": msg,
-                        "leaderboard": manager.leaderboard_cache # Send optimistic/cached
+                        "leaderboard": manager.leaderboard_cache # Send Optimistic Cache
                     })
             elif msg_type == "score":
+                # Optimistic Update
+                manager._update_cache_optimistically(country, score_inc=1)
+                
                 # Score update request (e.g. download)
                 # We handle DB update in broadcast wrapper
                 await manager.broadcast({
                     "type": "update_score",
                     "country": country,
-                    # We don't send leaderboard here, manager will fetch fresh one next time or we can trigger it
-                    "leaderboard": manager.leaderboard_cache 
+                    "leaderboard": manager.leaderboard_cache # Send Optimistic Cache
                 })
 
     except WebSocketDisconnect:
@@ -366,7 +392,7 @@ async def like_image(
                 "created_at": "now()" # Reset expiration timer
             }).eq("id", row_id).execute()
             
-            return {"status": "success", "msg": "Image bumped up!", "likes": new_likes}
+            return {"status": "success", "msg": "Image bumped up!", "likes": new_likes, "id": row_id}
         
         else:
             # [MISS] New Image
@@ -413,13 +439,16 @@ async def like_image(
             )
             
             # Insert DB
-            supabase.table("images").insert({
+            res = supabase.table("images").insert({
                 "doi": doi,
                 "image_hash": img_hash,
                 "storage_path": storage_path,
                 "country": country,
                 "likes": 1
             }).execute()
+            
+            # Get ID of inserted row
+            new_id = res.data[0]['id'] if res.data else None
 
             # --- IMMEDIATE CLEANUP (Strict 50 Limits) ---
             # Relaxed for now to allow new uploads to survive even if they start with 1 like
@@ -429,7 +458,7 @@ async def like_image(
             #     supabase.storage.from_("paper_images").remove([victim['storage_path']])
             #     supabase.table("images").delete().eq("id", victim['id']).execute()
             
-            return {"status": "success", "msg": "Image saved to Hall of Fame"}
+            return {"status": "success", "msg": "Image saved to Hall of Fame", "id": new_id, "likes": 1}
 
     except Exception as e:
         print(f"Like Error: {e}")
