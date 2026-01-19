@@ -560,6 +560,7 @@ const App = {
         if (isLoading && this.ui.statusMsg) { this.ui.statusMsg.innerHTML = ''; this.ui.statusMsg.className = 'status-msg'; }
     },
     showStatus(msg, type = 'normal') {
+        if (!msg) return; // Guard: Prevent empty toasts
         const container = document.getElementById('toast-container');
         if (!container) return;
 
