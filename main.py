@@ -625,7 +625,7 @@ async def get_trending(period: str = "all"):
         return {"status": "error", "images": []}
         
     try:
-        query = supabase.table("images").select("id, likes, storage_path, created_at, width, height, doi").order("likes", desc=True).limit(50)
+        query = supabase.table("images").select("id, likes, storage_path, created_at, doi").order("likes", desc=True).limit(50)
         import datetime
         now = datetime.datetime.utcnow()
         if period == "week": query = query.gte("created_at", (now - datetime.timedelta(days=7)).isoformat())

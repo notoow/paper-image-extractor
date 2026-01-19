@@ -36,11 +36,9 @@ const App = {
         trashBtn: document.getElementById('trashBtn'),
         pdfBtn: document.getElementById('pdfBtn'), // Static Ref
         gallery: document.getElementById('gallery'),
-
         sizeSlider: document.getElementById('sizeSlider'),
         sliderTooltip: document.getElementById('sliderTooltip'),
-
-        trashBtn: document.getElementById('trashBtn')
+        onlineCount: document.getElementById('onlineCount')
     },
 
     init() {
@@ -244,7 +242,7 @@ const App = {
         this.updateDownloadBtn();
 
         // Award Score for Research Activity
-        if (data.image_count > 0) {
+        if (count > 0) {
             this.sendScoreEvent();
         }
 
@@ -826,7 +824,12 @@ const App = {
         try {
             const fetchRes = await fetch(img.base64);
             const blob = await fetchRes.blob();
-            const file = new File([blob], "image.png", { type: img.ext });
+
+            // Fix MIME type and filename
+            let mimeType = `image/${img.ext}`;
+            if (img.ext === 'jpg' || img.ext === 'jpeg') mimeType = 'image/jpeg';
+
+            const file = new File([blob], `image.${img.ext}`, { type: mimeType });
 
             const formData = new FormData();
             formData.append('file', file);
