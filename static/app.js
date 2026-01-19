@@ -726,7 +726,8 @@ const App = {
             // Check if user (local) already liked this
             let myLikes = [];
             try { myLikes = JSON.parse(localStorage.getItem('my_liked_ids') || '[]'); } catch (e) { }
-            if (myLikes.includes(img.id)) {
+            // Use loose comparison (String) to handle DB Integers vs Storage Strings
+            if (myLikes.some(savedId => String(savedId) === String(img.id))) {
                 likeBtn.classList.add('liked');
             }
 
