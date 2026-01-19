@@ -9,5 +9,3 @@ apscheduler
 huggingface_hub
 websockets
 supabase>=2.0.0
-pydantic-settings
-pydantic[email]
