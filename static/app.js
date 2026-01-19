@@ -183,7 +183,7 @@ const App = {
         const formData = new FormData();
         formData.append('file', file);
         this.setLoading(true);
-        this.showStatus('');
+        // this.showStatus('');
         this.resetGallery();
         try {
             const response = await fetch('/api/upload', { method: 'POST', body: formData });
