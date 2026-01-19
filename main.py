@@ -42,11 +42,13 @@ class Settings:
 
 settings = Settings()
 
-# Setup Logging (Audit Log)
+from fastapi.exceptions import RequestValidationError # Import this
+
+# Setup Logging (Stdout for Cloud Logs)
 logging.basicConfig(
-    filename='audit.log',
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()] # Output to console
 )
 logger = logging.getLogger("security_audit")
 
@@ -237,6 +239,14 @@ async def custom_http_exception_handler(request, exc):
     return JSONResponse(
         status_code=exc.status_code,
         content={"status": "error", "detail": exc.detail},
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    logger.error(f"Validation Error: {exc} - Body: {exc.body}")
+    return JSONResponse(
+        status_code=422,
+        content={"status": "error", "detail": str(exc)},
     )
 
 @app.exception_handler(Exception)
