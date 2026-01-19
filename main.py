@@ -163,60 +163,61 @@ app = FastAPI(lifespan=lifespan,
               docs_url=None if settings.current_env == "production" else "/docs",  # Hide docs in prod
               redoc_url=None)
 
+# --- 5. MIDDLEWARE: SECURITY HEADERS & RATE LIMIT ---
 # Security Headers (HSTS, CSP, Frames, No-Sniff)
 # TrustedHostMiddleware removed to prevent HF Space connectivity issues
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    try:
-        response = await call_next(request)
-        # response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY" # Prevent Clickjacking
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        # CSP: Strict rules. Allow scripts from 'self', fontawesome, and specific CDNs safely.
-        response.headers["Content-Security-Policy"] = (
-            "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
-            #"default-src 'self'; "
-            #"img-src 'self' data: https://flagcdn.com https://*.supabase.co blob:; "
-            #"script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
-            #"style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
-            #"font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
-            #"connect-src 'self' https://ipapi.co https://*.supabase.co wss: ws:;"
-        )
-        return response
-    except Exception as e:
-        # Fallback error response
-        logger.error(f"Middleware Error: {e}")
-        return JSONResponse({"status": "error", "detail": "Internal Server Error"}, status_code=500)
+# @app.middleware("http")
+# async def add_security_headers(request: Request, call_next):
+#     try:
+#         response = await call_next(request)
+#         # response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+#         response.headers["X-Content-Type-Options"] = "nosniff"
+#         response.headers["X-Frame-Options"] = "DENY" # Prevent Clickjacking
+#         response.headers["X-XSS-Protection"] = "1; mode=block"
+#         # CSP: Strict rules. Allow scripts from 'self', fontawesome, and specific CDNs safely.
+#         response.headers["Content-Security-Policy"] = (
+#             "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
+#             #"default-src 'self'; "
+#             #"img-src 'self' data: https://flagcdn.com https://*.supabase.co blob:; "
+#             #"script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+#             #"style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+#             #"font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
+#             #"connect-src 'self' https://ipapi.co https://*.supabase.co wss: ws:;"
+#         )
+#         return response
+#     except Exception as e:
+#         # Fallback error response
+#         logger.error(f"Middleware Error: {e}")
+#         return JSONResponse({"status": "error", "detail": "Internal Server Error"}, status_code=500)
 
 # Rate Limiting
 RATE_LIMIT_DATA = {}
 RATE_LIMIT_WINDOW = 60 # 1 minute
 RATE_LIMIT_MAX_REQUESTS = 60 # Increased slightly for UX
 
-@app.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
-    if request.url.path.startswith("/api/"):
-        forwarded = request.headers.get("X-Forwarded-For")
-        client_ip = forwarded.split(",")[0] if forwarded else request.client.host
-        now = time.time()
+# @app.middleware("http")
+# async def rate_limit_middleware(request: Request, call_next):
+#     if request.url.path.startswith("/api/"):
+#         forwarded = request.headers.get("X-Forwarded-For")
+#         client_ip = forwarded.split(",")[0] if forwarded else request.client.host
+#         now = time.time()
         
-        if client_ip not in RATE_LIMIT_DATA:
-            RATE_LIMIT_DATA[client_ip] = []
+#         if client_ip not in RATE_LIMIT_DATA:
+#             RATE_LIMIT_DATA[client_ip] = []
         
-        # Filter old requests
-        history = [t for t in RATE_LIMIT_DATA[client_ip] if now - t < RATE_LIMIT_WINDOW]
-        RATE_LIMIT_DATA[client_ip] = history
+#         # Filter old requests
+#         history = [t for t in RATE_LIMIT_DATA[client_ip] if now - t < RATE_LIMIT_WINDOW]
+#         RATE_LIMIT_DATA[client_ip] = history
         
-        if len(history) >= RATE_LIMIT_MAX_REQUESTS:
-             logger.warning(f"Rate Limit Exceeded: {client_ip}")
-             return JSONResponse(
-                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                 content={"status": "error", "detail": "Too many requests. Please wait."}
-             )
-        RATE_LIMIT_DATA[client_ip].append(now)
+#         if len(history) >= RATE_LIMIT_MAX_REQUESTS:
+#              logger.warning(f"Rate Limit Exceeded: {client_ip}")
+#              return JSONResponse(
+#                  status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+#                  content={"status": "error", "detail": "Too many requests. Please wait."}
+#              )
+#         RATE_LIMIT_DATA[client_ip].append(now)
 
-    return await call_next(request)
+#     return await call_next(request)
 
 # Trusted Host (Prevents Host Header Poisoning)
 # app.add_middleware(
@@ -225,13 +226,13 @@ async def rate_limit_middleware(request: Request, call_next):
 # )
 
 # CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"], # Limit methods
-    allow_headers=["*"],
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=settings.allowed_origins,
+#     allow_credentials=True,
+#     allow_methods=["GET", "POST", "OPTIONS"], # Limit methods
+#     allow_headers=["*"],
+# )
 
 # --- 6. ERROR HANDLERS (No Information Leakage) ---
 @app.exception_handler(HTTPException)
