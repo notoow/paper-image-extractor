@@ -228,9 +228,9 @@ RATE_LIMIT_MAX_REQUESTS = 60 # Increased slightly for UX
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"], # Limit methods
+    allow_origins=["*"], # Explicitly wildcard
+    allow_credentials=False, # Must be False when using wildcard origins
+    allow_methods=["*"], # Allow all methods (including OPTIONS)
     allow_headers=["*"],
 )
 
