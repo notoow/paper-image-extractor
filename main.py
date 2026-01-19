@@ -154,10 +154,24 @@ async def cleanup_old_data():
     except Exception as e:
         logger.error(f"Janitor Error: {e}")
 
+async def keep_alive_ping():
+    """Self-ping to stay awake on HF Spaces."""
+    try:
+        # We try to find our own public URL or just ping a known endpoint
+        # Internal pinging doesn't always work for HF sleeping, 
+        # but it keeps the internal async loop active and healthy.
+        import requests
+        # Simple head request to root
+        requests.get("http://localhost:7860", timeout=5)
+        logger.info("Keep-alive ping sent.")
+    except:
+        pass
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     scheduler.add_job(cleanup_old_data, 'interval', minutes=10)
+    scheduler.add_job(keep_alive_ping, 'interval', minutes=30) # Ping every 30m
     scheduler.start()
     yield
     # Shutdown
