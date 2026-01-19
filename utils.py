@@ -144,79 +144,79 @@ def extract_images_from_pdf_bytes(pdf_bytes: bytes) -> list:
 def get_pdf_from_scihub_advanced(doi: str):
     """
     Attempts to fetch PDF from Sci-Hub mirrors or Open Access links.
-    Returns: (bytes, title) OR (None, pdf_url) OR (None, error_msg)
+    Returns: (bytes, title) OR (None, error_msg)
     """
     mirrors = [
         "https://sci-hub.se",
         "https://sci-hub.st",
         "https://sci-hub.ru",
-        # "https://sci-hub.ee", # Removing unstable ones for security speed
+        "https://sci-hub.do"
     ]
     
     clean_doi = doi.strip()
-    if clean_doi.startswith('http'):
+    # Basic normalization if not already handled
+    if 'doi.org/' in clean_doi:
         clean_doi = clean_doi.split('doi.org/')[-1]
     
-    pdf_url = None
-    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+    }
+
     # 1. Try Mirrors
     for mirror in mirrors:
         target_url = f"{mirror}/{clean_doi}"
         try:
-            # Initial Page Load (Lightweight)
-            res = requests.get(target_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5, verify=False)
+            logger.info(f"Trying mirror: {target_url}")
+            res = requests.get(target_url, headers=headers, timeout=10, verify=False)
             if res.status_code == 200:
                 soup = BeautifulSoup(res.content, 'html.parser')
+                pdf_url = None
                 
-                # Pattern 1: Iframe/Embed
-                iframe = soup.select_one('iframe#pdf') or soup.select_one('embed#pdf')
+                # Best patterns from old working version
+                iframe = soup.find('iframe', id='pdf') or soup.find('embed', id='pdf')
                 if iframe and iframe.get('src'):
                     pdf_url = iframe['src']
                 
-                if not pdf_url: # Pattern 2
-                     btn = soup.select_one('button[onclick^="location.href"]')
-                     if btn:
-                         match = re.search(r"location\.href='([^']+)'", btn['onclick'])
-                         if match: pdf_url = match.group(1)
+                if not pdf_url:
+                    # Alternative: Look for buttons
+                    btn = soup.select_one('button[onclick^="location.href"]')
+                    if btn:
+                        match = re.search(r"location\.href='([^']+)'", btn['onclick'])
+                        if match: pdf_url = match.group(1)
 
                 if pdf_url:
-                    if pdf_url.startswith('//'): pdf_url = 'https:' + pdf_url
-                    elif pdf_url.startswith('/'): pdf_url = mirror + pdf_url
+                    # Robust URL completion
+                    if pdf_url.startswith('//'):
+                        pdf_url = 'https:' + pdf_url
+                    elif not pdf_url.startswith('http'):
+                        pdf_url = mirror.rstrip('/') + '/' + pdf_url.lstrip('/')
                     
-                    # Direct Download (Rollback from safe_download)
-                    try:
-                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-                        pdf_res = requests.get(pdf_url, headers=headers, timeout=30, verify=False)
-                        content = pdf_res.content
-                        if b'%PDF' in content[:20]:
-                            title = "paper"
-                            try: 
-                                if soup.title: title = sanitize_filename(soup.title.string.split('|')[0])
-                            except: pass
-                            return content, title
-                    except Exception as e:
-                        logger.warning(f"Download fail {pdf_url}: {e}")
-                        continue
-                        
-        except Exception:
+                    logger.info(f"Found PDF URL: {pdf_url}")
+                    pdf_res = requests.get(pdf_url, headers=headers, timeout=25, verify=False)
+                    if pdf_res.status_code == 200 and b'%PDF' in pdf_res.content[:100]:
+                        title = "paper"
+                        try:
+                            if soup.title:
+                                title = sanitize_filename(soup.title.string.split('|')[0])
+                        except: pass
+                        return pdf_res.content, title
+        except Exception as e:
+            logger.warning(f"Mirror {mirror} failed: {e}")
             continue
     
-    # 2. Try Open Access (Fallback)
+    # 2. Try Unpaywall (Open Access)
     try:
-        oa_api_url = f"https://api.unpaywall.org/v2/{clean_doi}?email=unpaywall@impactstory.org"
-        oa_res = requests.get(oa_api_url, timeout=5)
+        oa_res = requests.get(f"https://api.unpaywall.org/v2/{clean_doi}?email=unpaywall@impactstory.org", timeout=5)
         if oa_res.status_code == 200:
-            data = oa_res.json()
-            if data.get('best_oa_location'):
-                pdf_oa_url = data['best_oa_location'].get('url_for_pdf')
-                if pdf_oa_url:
-                    try:
-                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-                        oa_pdf_res = requests.get(pdf_oa_url, headers=headers, timeout=30, verify=False)
-                        content = oa_pdf_res.content
-                        if b'%PDF' in content[:50]:
-                            return content, sanitize_filename(data.get('title', 'open_access_paper'))
-                    except: pass
-    except: pass
+            oa_data = oa_res.json()
+            best_loc = oa_data.get('best_oa_location')
+            if best_loc and best_loc.get('url_for_pdf'):
+                pdf_url = best_loc['url_for_pdf']
+                logger.info(f"Trying OA link: {pdf_url}")
+                oa_pdf_res = requests.get(pdf_url, headers=headers, timeout=20, verify=False)
+                if b'%PDF' in oa_pdf_res.content[:100]:
+                    return oa_pdf_res.content, sanitize_filename(oa_data.get('title', 'paper'))
+    except Exception as e:
+        logger.warning(f"Unpaywall failed: {e}")
 
-    return None, "PDF not found."
+    return None, "PDF not found on Sci-Hub mirrors or Open Access."
