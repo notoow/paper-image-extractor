@@ -183,9 +183,11 @@ def get_pdf_from_scihub_advanced(doi: str):
                     if pdf_url.startswith('//'): pdf_url = 'https:' + pdf_url
                     elif pdf_url.startswith('/'): pdf_url = mirror + pdf_url
                     
-                    # Safe Download
+                    # Direct Download (Rollback from safe_download)
                     try:
-                        content = safe_download(pdf_url)
+                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                        pdf_res = requests.get(pdf_url, headers=headers, timeout=30, verify=False)
+                        content = pdf_res.content
                         if b'%PDF' in content[:20]:
                             title = "paper"
                             try: 
@@ -209,7 +211,9 @@ def get_pdf_from_scihub_advanced(doi: str):
                 pdf_oa_url = data['best_oa_location'].get('url_for_pdf')
                 if pdf_oa_url:
                     try:
-                        content = safe_download(pdf_oa_url)
+                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                        oa_pdf_res = requests.get(pdf_oa_url, headers=headers, timeout=30, verify=False)
+                        content = oa_pdf_res.content
                         if b'%PDF' in content[:50]:
                             return content, sanitize_filename(data.get('title', 'open_access_paper'))
                     except: pass
