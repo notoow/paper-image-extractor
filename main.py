@@ -169,18 +169,19 @@ app = FastAPI(lifespan=lifespan,
 async def add_security_headers(request: Request, call_next):
     try:
         response = await call_next(request)
-        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+        # response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY" # Prevent Clickjacking
         response.headers["X-XSS-Protection"] = "1; mode=block"
         # CSP: Strict rules. Allow scripts from 'self', fontawesome, and specific CDNs safely.
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "img-src 'self' data: https://flagcdn.com https://*.supabase.co blob:; "
-            "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
-            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
-            "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
-            "connect-src 'self' https://ipapi.co https://*.supabase.co wss: ws:;"
+            "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
+            #"default-src 'self'; "
+            #"img-src 'self' data: https://flagcdn.com https://*.supabase.co blob:; "
+            #"script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+            #"style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+            #"font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; "
+            #"connect-src 'self' https://ipapi.co https://*.supabase.co wss: ws:;"
         )
         return response
     except Exception as e:
