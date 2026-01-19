@@ -171,10 +171,19 @@ const App = {
         // this.showStatus('');
         this.resetGallery();
         try {
-            const response = await fetch('/api/process', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doi: doi }) });
+            const response = await fetch('/api/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ doi: doi }),
+                cache: 'no-store' // Force fresh request
+            });
             const data = await response.json();
             this.handleResponse(response, data, doi); // Pass doi to handleResponse
-        } catch (error) { this.showErrorWithRescueLink('Network error or timeout.'); } finally { this.setLoading(false); }
+        } catch (error) {
+            console.error(error);
+            alert(`Error: ${error.message}. Please check your connection.`); // Visual feedback
+            this.showErrorWithRescueLink('Network error or timeout.');
+        } finally { this.setLoading(false); }
     },
 
     async handleFileUpload(e) {
