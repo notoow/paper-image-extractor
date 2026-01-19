@@ -1139,39 +1139,39 @@ input[type=range]:active::-webkit-slider-thumb {
 
 /* --- Mobile Responsiveness --- */
 
-/* DOI Pill Style */
+/* DOI Pill Style - Absolute Positioning over Image */
 .doi-pill {
-    margin-top: 8px;
-    padding: 6px 12px;
-    border-radius: 15px;
-    background: rgba(109, 93, 252, 0.1);
-    color: var(--accent);
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-align: center;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(109, 93, 252, 0.85);
+    /* Slightly more opaque */
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
-    border: 1px solid rgba(109, 93, 252, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    z-index: 10;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    width: fit-content;
-    margin-left: auto;
-    margin-right: auto;
+    gap: 5px;
+    transition: all 0.2s ease;
     backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .doi-pill:hover {
-    background: var(--accent);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(109, 93, 252, 0.3);
+    background: #5f27cd;
+    /* Solid color on hover */
+    transform: scale(1.05);
 }
 
 .doi-pill i {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
 }
+
 @media (max-width: 768px) {
     .container {
         padding: 20px;

@@ -762,7 +762,7 @@ const App = {
             if (img.doi && img.doi.length > 5) {
                 const doiPill = document.createElement('div');
                 doiPill.className = 'doi-pill';
-                doiPill.innerHTML = `<i class="fa-solid fa-flask-vial"></i> ${img.doi}`;
+                doiPill.innerHTML = `<i class="fa-solid fa-flask-vial"></i> DOI`; // Text changed to DOI
                 doiPill.title = `Extract from this paper: ${img.doi}`;
                 doiPill.onclick = (e) => {
                     e.stopPropagation();
