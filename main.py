@@ -163,8 +163,8 @@ app = FastAPI(lifespan=lifespan,
               docs_url=None if settings.current_env == "production" else "/docs",  # Hide docs in prod
               redoc_url=None)
 
-# --- 5. MIDDLEWARE: SECURITY HEADERS & RATE LIMIT ---
 # Security Headers (HSTS, CSP, Frames, No-Sniff)
+# TrustedHostMiddleware removed to prevent HF Space connectivity issues
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     try:
@@ -219,10 +219,10 @@ async def rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 # Trusted Host (Prevents Host Header Poisoning)
-app.add_middleware(
-    TrustedHostMiddleware, 
-    allowed_hosts=settings.allowed_hosts
-)
+# app.add_middleware(
+#     TrustedHostMiddleware, 
+#     allowed_hosts=settings.allowed_hosts
+# )
 
 # CORS
 app.add_middleware(
