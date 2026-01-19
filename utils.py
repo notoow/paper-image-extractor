@@ -166,33 +166,38 @@ def get_pdf_from_scihub_advanced(doi: str):
     for mirror in mirrors:
         target_url = f"{mirror}/{clean_doi}"
         try:
-            logger.info(f"Trying mirror: {target_url}")
+            logger.info(f"Checking mirror: {target_url}")
             res = requests.get(target_url, headers=headers, timeout=10, verify=False)
+            logger.info(f"Mirror {mirror} returned status: {res.status_code}")
+            
             if res.status_code == 200:
                 soup = BeautifulSoup(res.content, 'html.parser')
                 pdf_url = None
                 
-                # Best patterns from old working version
+                # Check for various PDF locations
                 iframe = soup.find('iframe', id='pdf') or soup.find('embed', id='pdf')
                 if iframe and iframe.get('src'):
                     pdf_url = iframe['src']
                 
                 if not pdf_url:
-                    # Alternative: Look for buttons
-                    btn = soup.select_one('button[onclick^="location.href"]')
+                    # Look for any link or button that might look like a PDF download
+                    btn = soup.select_one('button[onclick*="location.href"]')
                     if btn:
                         match = re.search(r"location\.href='([^']+)'", btn['onclick'])
                         if match: pdf_url = match.group(1)
-
+                
                 if pdf_url:
+                    logger.info(f"Detected PDF URL candidate: {pdf_url}")
                     # Robust URL completion
                     if pdf_url.startswith('//'):
                         pdf_url = 'https:' + pdf_url
                     elif not pdf_url.startswith('http'):
                         pdf_url = mirror.rstrip('/') + '/' + pdf_url.lstrip('/')
                     
-                    logger.info(f"Found PDF URL: {pdf_url}")
+                    logger.info(f"Fetching final PDF: {pdf_url}")
                     pdf_res = requests.get(pdf_url, headers=headers, timeout=25, verify=False)
+                    logger.info(f"PDF download status: {pdf_res.status_code}")
+                    
                     if pdf_res.status_code == 200 and b'%PDF' in pdf_res.content[:100]:
                         title = "paper"
                         try:
@@ -200,8 +205,12 @@ def get_pdf_from_scihub_advanced(doi: str):
                                 title = sanitize_filename(soup.title.string.split('|')[0])
                         except: pass
                         return pdf_res.content, title
+                    else:
+                        logger.warning(f"Response not a valid PDF or status {pdf_res.status_code}")
+                else:
+                    logger.warning(f"No PDF URL found in soup for {mirror}")
         except Exception as e:
-            logger.warning(f"Mirror {mirror} failed: {e}")
+            logger.warning(f"Request to {mirror} failed: {e}")
             continue
     
     # 2. Try Unpaywall (Open Access)
