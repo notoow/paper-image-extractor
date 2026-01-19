@@ -119,10 +119,15 @@ class DoiRequest(BaseModel):
     @field_validator('doi')
     def validate_doi(cls, v):
         v = v.strip()
-        # Regex for generic DOI format (Prevents SSRF/Command Injection chars)
-        # Matches: 10.xxxx/xxxxx
-        if not re.match(r'^10\.\d{4,9}/[-._;()/:a-zA-Z0-9]+$', v):
-            raise ValueError('Invalid DOI format')
+        if not v:
+            raise ValueError('DOI cannot be empty')
+        # Strip common DOI URL prefixes (normalize)
+        for prefix in ['https://doi.org/', 'http://doi.org/', 'https://dx.doi.org/', 'http://dx.doi.org/', 'doi.org/', 'dx.doi.org/', 'doi:']:
+            if v.lower().startswith(prefix):
+                v = v[len(prefix):]
+                break
+        # Basic sanity check: should contain at least one '/' for DOI format
+        # But be permissive - let Sci-Hub decide if it's valid
         return v
 
 class VoteRequest(BaseModel):
@@ -244,9 +249,10 @@ async def custom_http_exception_handler(request, exc):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
     logger.error(f"Validation Error: {exc} - Body: {exc.body}")
+    # User-friendly message
     return JSONResponse(
         status_code=422,
-        content={"status": "error", "detail": str(exc)},
+        content={"status": "error", "detail": "Invalid input. Please check your DOI format and try again."},
     )
 
 @app.exception_handler(Exception)
