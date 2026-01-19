@@ -21,7 +21,7 @@ from fastapi.exception_handlers import http_exception_handler
 from fastapi.staticfiles import StaticFiles
 
 from pydantic import BaseModel, Field, field_validator
-from pydantic_settings import BaseSettings
+
 
 import fitz  # PyMuPDF
 from supabase import create_client, Client
@@ -30,18 +30,15 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from utils import sanitize_and_compress_pdf, get_pdf_from_scihub_advanced
 
 # --- 1. CONFIGURATION & SECRETS (Secret Management) ---
-class Settings(BaseSettings):
-    supabase_url: Optional[str] = None
-    supabase_key: Optional[str] = None
-    # Security: CORS & Host defaults
-    allowed_hosts: List[str] = ["*"]  # Allow all for HF Spaces / Cloud
-    allowed_origins: List[str] = ["*"] # Adjust in production!
-    current_env: str = "production"
-
-    model_config = {
-        "env_file": ".env",
-        "case_sensitive": False
-    }
+# --- 1. CONFIGURATION & SECRETS (Secret Management) ---
+class Settings:
+    def __init__(self):
+        self.supabase_url = os.getenv("SUPABASE_URL")
+        self.supabase_key = os.getenv("SUPABASE_KEY")
+        # Security: CORS & Host defaults
+        self.allowed_hosts = ["*"]  # Allow all for HF Spaces / Cloud
+        self.allowed_origins = ["*"] # Adjust in production!
+        self.current_env = os.getenv("CURRENT_ENV", "production")
 
 settings = Settings()
 
