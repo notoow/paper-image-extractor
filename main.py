@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     supabase_url: Optional[str] = None
     supabase_key: Optional[str] = None
     # Security: CORS & Host defaults
-    allowed_hosts: List[str] = ["localhost", "127.0.0.1", "*.render.com", "notoow.github.io"] 
+    allowed_hosts: List[str] = ["*"]  # Allow all for HF Spaces / Cloud
     allowed_origins: List[str] = ["*"] # Adjust in production!
     current_env: str = "production"
 
