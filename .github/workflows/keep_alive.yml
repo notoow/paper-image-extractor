@@ -1,21 +1,27 @@
 
-name: Keep HF Space Awake
+name: Smart Keep-Alive (Human-like)
 
-# 30분마다 실행 & 푸시할 때마다 실행
+# Make it look random: Run every 50 mins base schedule
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/50 * * * *'
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
-  ping:
+  ping_human_like:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping HF Space
+      - name: Human-like Ping to HF Space
         run: |
-          echo "Pinging Paper Prism at https://notoow-paper-image-extractor.hf.space"
-          curl -I https://notoow-paper-image-extractor.hf.space
-          echo "Ping successful (I hope)"
+          # 1. Random delay (0 ~ 600s) to avoid exact cron patterns
+          DELAY=$((RANDOM % 600))
+          echo "Sleeping for ${DELAY} seconds to simulate human randomness..."
+          sleep $DELAY
+
+          # 2. Use a real browser User-Agent string
+          USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          
+          # 3. Send GET request (simulate page load)
+          echo "Pinging Paper Prism as a Chrome browser..."
+          curl -L -A "$USER_AGENT" -s -o /dev/null -w "%{http_code}" https://notoow-paper-image-extractor.hf.space
+          echo " Ping complete."
