@@ -1,0 +1,21 @@
+
+name: Keep HF Space Awake
+
+# 30분마다 실행 & 푸시할 때마다 실행
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping HF Space
+        run: |
+          echo "Pinging Paper Prism at https://notoow-paper-image-extractor.hf.space"
+          curl -I https://notoow-paper-image-extractor.hf.space
+          echo "Ping successful (I hope)"
