@@ -495,8 +495,8 @@ async def process_doi(req: DoiRequest): # Validated by Pydantic
     try:
         logger.info(f"Processing DOI: {req.doi}") # Audit
         logger.info("Starting Sci-Hub download...")
-        pdf_bytes, result_msg = await run_in_threadpool(get_pdf_from_scihub_advanced, req.doi)
-        logger.info(f"Download Finished. Result: {result_msg[:50]}...")
+        pdf_bytes, title, metadata = await run_in_threadpool(get_pdf_from_scihub_advanced, req.doi)
+        logger.info(f"Download Finished. Title: {title[:50]}...")
         
         if not pdf_bytes:
              logger.warning(f"PDF Not Found: {req.doi}")
@@ -509,6 +509,7 @@ async def process_doi(req: DoiRequest): # Validated by Pydantic
         if result["status"] == "success":
             result["doi"] = req.doi
             result["pdf_base64"] = base64.b64encode(pdf_bytes).decode('utf-8')
+            result["meta"] = metadata # Pass metadata to frontend
             return result
         else:
             raise HTTPException(status_code=400, detail=result.get("detail", "Processing failed"))

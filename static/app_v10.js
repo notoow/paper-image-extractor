@@ -228,6 +228,30 @@ const App = {
         this.state.images = data.images || [];
 
         let rawTitle = data.title || "paper";
+
+        // --- Metadata Visualization (New) ---
+        const metaDiv = document.getElementById('paperMeta');
+        if (data.meta && data.meta.title !== "Unknown Paper") {
+            // Prefer metadata title for display & filename
+            rawTitle = data.meta.title;
+
+            document.getElementById('metaTitle').textContent = rawTitle;
+            document.getElementById('metaJournal').textContent = data.meta.journal || "Journal / Source";
+            document.getElementById('metaDate').textContent = data.meta.date || new Date().getFullYear();
+
+            if (metaDiv) metaDiv.style.display = 'block';
+        } else {
+            // Fallback: If we have a title from PDF properties but no metadata
+            if (rawTitle !== "paper") {
+                document.getElementById('metaTitle').textContent = rawTitle;
+                document.getElementById('metaJournal').textContent = "Uploaded PDF";
+                document.getElementById('metaDate').textContent = new Date().getFullYear();
+                if (metaDiv) metaDiv.style.display = 'block';
+            } else {
+                if (metaDiv) metaDiv.style.display = 'none';
+            }
+        }
+
         // SAFE FILENAME LOGIC (Updated to support Korean/Unicode)
         // Replace ONLY filesystem-unsafe characters: < > : " / \ | ? *
         let safeTitle = rawTitle.replace(/[<>:"/\\|?*]+/g, '_');

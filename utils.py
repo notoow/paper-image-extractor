@@ -144,7 +144,8 @@ def extract_images_from_pdf_bytes(pdf_bytes: bytes) -> list:
 def get_pdf_from_scihub_advanced(doi: str):
     """
     Attempts to fetch PDF from Sci-Hub mirrors or Open Access links.
-    Returns: (bytes, title) OR (None, error_msg)
+    Also fetches metadata from Crossref.
+    Returns: (bytes, title, paper_info_dict) OR (None, error_msg, paper_info_dict)
     """
     mirrors = [
         "https://sci-hub.hlgczx.com",
@@ -163,6 +164,39 @@ def get_pdf_from_scihub_advanced(doi: str):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
     }
+
+    paper_info = {
+        "title": "Unknown Paper",
+        "journal": "",
+        "date": "",
+        "authors": []
+    }
+
+    # 0. Quick Metadata Fetch (Crossref)
+    try:
+        cr_url = f"https://api.crossref.org/works/{clean_doi}"
+        cr_res = requests.get(cr_url, timeout=3) # Fast timeout
+        if cr_res.status_code == 200:
+            data = cr_res.json()['message']
+            paper_info['title'] = data.get('title', ['Unknown Paper'])[0]
+            if 'short-container-title' in data and data['short-container-title']:
+                paper_info['journal'] = data['short-container-title'][0]
+            elif 'container-title' in data and data['container-title']:
+                paper_info['journal'] = data['container-title'][0]
+            
+            if 'published-print' in data:
+                parts = data['published-print']['date-parts'][0]
+                paper_info['date'] = str(parts[0]) # Year
+            elif 'created' in data:
+                parts = data['created']['date-parts'][0]
+                paper_info['date'] = str(parts[0])
+
+            if 'author' in data:
+                paper_info['authors'] = [f"{a.get('given','')} {a.get('family','')}".strip() for a in data['author'][:3]]
+            
+            logger.info(f"Metadata Found: {paper_info['title']}")
+    except:
+        pass
 
     # 1. Try Mirrors
     for mirror in mirrors:
@@ -217,15 +251,12 @@ def get_pdf_from_scihub_advanced(doi: str):
                     
                     logger.info(f"Fetching final PDF: {pdf_url}")
                     pdf_res = requests.get(pdf_url, headers=headers, timeout=25, verify=False)
-                    logger.info(f"PDF download status: {pdf_res.status_code}")
-                    
                     if pdf_res.status_code == 200 and b'%PDF' in pdf_res.content[:100]:
-                        title = "paper"
                         try:
-                            if soup.title:
-                                title = sanitize_filename(soup.title.string.split('|')[0])
+                            if soup.title and paper_info['title'] == "Unknown Paper":
+                                paper_info['title'] = sanitize_filename(soup.title.string.split('|')[0])
                         except: pass
-                        return pdf_res.content, title
+                        return pdf_res.content, paper_info['title'], paper_info
                     else:
                         logger.warning(f"Response not a valid PDF or status {pdf_res.status_code}")
                         pdf_url = None # Reset to try next pattern/mirror
@@ -246,8 +277,9 @@ def get_pdf_from_scihub_advanced(doi: str):
                 logger.info(f"Trying OA link: {pdf_url}")
                 oa_pdf_res = requests.get(pdf_url, headers=headers, timeout=20, verify=False)
                 if b'%PDF' in oa_pdf_res.content[:100]:
-                    return oa_pdf_res.content, sanitize_filename(oa_data.get('title', 'paper'))
+                    if paper_info['title'] == "Unknown Paper": paper_info['title'] = sanitize_filename(oa_data.get('title', 'paper'))
+                    return oa_pdf_res.content, paper_info['title'], paper_info
     except Exception as e:
         logger.warning(f"Unpaywall failed: {e}")
 
-    return None, "PDF not found on Sci-Hub mirrors or Open Access."
+    return None, "PDF not found on Sci-Hub mirrors or Open Access.", paper_info
