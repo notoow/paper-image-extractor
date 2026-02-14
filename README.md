@@ -9,17 +9,42 @@ pinned: false
 license: mit
 ---
 
-# Paper Prism | Paper Image Extractor
+# Paper Prism | Paper Image Extractor 🧪✨
 
-A beautifully designed web application that allows you to extract high-quality images from research papers using only a DOI.
+A premium, glassmorphism-inspired web tool designed for researchers to instantly extract high-quality figures and diagrams from academic papers using only a DOI or direct PDF upload.
 
-## ✨ Features
+## 🚀 Live Demo
+**[Launch Paper Prism on Hugging Face Spaces](https://notoow-paper-image-extractor.hf.space)**
 
-- **DOI to Images**: Instantly fetch a paper from Sci-Hub using its DOI and extract all embedded images.
-- **High-Quality Extraction**: Uses `PyMuPDF` to extract the raw image bytes from the PDF.
-- **Auto-Mirror Switching**: Automatically tries multiple Sci-Hub mirrors to find a working source.
-- **Premium UI**: Modern, glassmorphism-inspired interface with Neumorphic design elements.
+## ✨ Core Features
+
+- **DOI Smart Fetch**: Paste a DOI, and we'll handle the rest via Sci-Hub mirrors/Unpaywall.
+- **Precision Extraction**: Powered by `PyMuPDF` to grab raw image bytes without quality loss.
+- **Smart Filtering**: Automatically hides tiny icons/logos and focuses on actual scientific figures.
+- **Social & Collaborative**:
+  - **Hall of Fame**: Discover what researchers are trending globally.
+  - **Live Multi-Country Hub**: Real-time chat and leaderboard.
+- **Modern UX**: Beautiful Neumorphic design with mobile-first responsiveness.
+- **SEO Optimized**: Built to be discoverable by research communities worldwide.
+
+## 🛠️ Tech Stack
+
+- **Backend**: Python, FastAPI, APScheduler
+- **Extraction**: PyMuPDF (fitz)
+- **Database/Real-time**: Supabase (PostgreSQL & Realtime)
+- **Frontend**: Vanilla JS (ES6+), CSS Grid/Flexbox, Neumorphism system
+- **Deployment**: Docker on Hugging Face Spaces
+
+## 🛡️ Self-Maintenance
+
+The app includes a built-in **Janitor Service** that automatically:
+- Truncates old chat logs to maintain performance.
+- Rotates the Hall of Fame images based on popularity and age.
+- Employs a keep-alive self-ping task to stay active.
 
 ## ⚠️ Disclaimer
 
-This tool is for educational purposes only. Please respect copyright laws.
+This tool is created for educational and research purposes. Please ensure you comply with international copyright laws and journal access policies.
+
+---
+Created with ❤️ for the global research community.

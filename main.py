@@ -57,58 +57,67 @@ supabase: Optional[Client] = None
 if settings.supabase_url and settings.supabase_key:
     try:
         supabase = create_client(settings.supabase_url, settings.supabase_key)
-        logger.info("Supabase connected.")
+        logger.info("Supabase client initialized.")
+        # Test connection strictly
+        # supabase.table("chats").select("id", count="exact", head=True).execute() 
+        # logger.info("Supabase connection active.")
     except Exception as e:
         logger.error(f"Supabase init failed: {e}")
         print(f"Supabase Init Error: {e}")
 else:
-    logger.warning("Supabase credentials missing.")
+    logger.warning("Supabase credentials (SUPABASE_URL, SUPABASE_KEY) are MISSING. Persistence will be disabled.")
+
 
 # --- 2. VOTE MANAGER (IP-Based Deduplication / Anti-Abuse) ---
+# --- 2. VOTE MANAGER (Supabase Backed) ---
 class VoteManager:
-    def __init__(self, filename="votes.json"):
-        self.filename = filename
-        self.votes = self._load() # Structure: { "image_id_str": ["hash_ip1", "hash_ip2"] }
-
-    def _load(self):
-        if os.path.exists(self.filename):
-            try:
-                with open(self.filename, 'r') as f:
-                    return json.load(f)
-            except:
-                return {}
-        return {}
-
-    def _save(self):
-        try:
-            with open(self.filename, 'w') as f:
-                json.dump(self.votes, f)
-        except Exception as e:
-            logger.error(f"Vote Save Error: {e}")
+    def __init__(self):
+        # Local cache for speed + fallback if DB is slow/down
+        self.local_cache = set() 
+        logger.info("VoteManager: Initialized (Supabase + Local Cache)")
 
     def hash_ip(self, ip: str) -> str:
-        # PII Protection: Hash IP before storage
         return hashlib.sha256(ip.encode()).hexdigest()[:16]
 
     def has_voted(self, image_id: str, ip: str) -> bool:
-        img_key = str(image_id)
-        if img_key not in self.votes:
-            return False
         ip_hash = self.hash_ip(ip)
-        return ip_hash in self.votes[img_key]
+        cache_key = f"{image_id}:{ip_hash}"
+        
+        # 1. Check Local Cache (Fastest)
+        if cache_key in self.local_cache:
+            return True
+            
+        # 2. Check Supabase (Persistent)
+        if supabase:
+            try:
+                res = supabase.table("votes").select("id").eq("image_id", image_id).eq("ip_hash", ip_hash).execute()
+                if res.data:
+                    self.local_cache.add(cache_key) # Populate cache
+                    return True
+            except Exception as e:
+                # If table "votes" doesn't exist or connection fails, we likely fall back to allowing vote
+                # or we can check the old JSON way if we really wanted to (but we are moving away from it)
+                pass
+                
+        return False
 
     def register_vote(self, image_id: str, ip: str):
-        img_key = str(image_id)
         ip_hash = self.hash_ip(ip)
+        cache_key = f"{image_id}:{ip_hash}"
         
-        if img_key not in self.votes:
-            self.votes[img_key] = []
+        # 1. Update Local
+        self.local_cache.add(cache_key)
         
-        if ip_hash not in self.votes[img_key]:
-            self.votes[img_key].append(ip_hash)
-            self._save()
-            return True
-        return False
+        # 2. Update Supabase
+        if supabase:
+            try:
+                # Assuming 'votes' table exists: id (int, auto), image_id (int), ip_hash (str, index)
+                supabase.table("votes").insert({"image_id": image_id, "ip_hash": ip_hash}).execute()
+                return True
+            except Exception as e:
+                logger.error(f"Failed to persist vote to Supabase: {e}")
+                # Note: If duplicate, it might error, which is fine.
+        return True
 
 vote_manager = VoteManager()
 
@@ -291,21 +300,28 @@ class ConnectionManager:
             self._load_data_from_supabase()
 
     def _load_data_from_supabase(self):
+        if not supabase: return
         try:
+            logger.info("Loading recent chats from Supabase...")
             response = supabase.table("chats").select("*").order("created_at", desc=True).limit(50).execute()
+            
+            # Reset history to avoid dupes on reload
+            self.chat_history.clear()
+            
             for row in reversed(response.data):
                 self.chat_history.append({
                     "country": row.get("country", "Unknown"),
                     "msg": row.get("msg", ""), # Sanitize on render
                     "type": "chat"
                 })
+            logger.info(f"Loaded {len(self.chat_history)} messages.")
             self._update_leaderboard_cache()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Supabase Load Error: {e}")
 
     def _update_leaderboard_cache(self):
+        if not supabase: return
         try:
-            if not supabase: return
             res = supabase.table("leaderboard").select("*").order("score", desc=True).limit(50).execute()
             self.leaderboard_cache = [
                 {
@@ -315,8 +331,8 @@ class ConnectionManager:
                 }
                 for row in res.data
             ]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Leaderboard Load Error: {e}")
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -657,7 +673,7 @@ async def get_trending(period: str = "all"):
         return {"status": "success", "images": images}
     except Exception as e:
         logger.error(f"Trending Error: {e}")
-        return {"status": "error", "images": []}
+        return {"status": "error", "detail": f"Database error: {str(e)}", "images": []}
 
 # Logic Extractor
 def extract_from_bytes(pdf_bytes):
