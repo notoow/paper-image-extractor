@@ -90,7 +90,7 @@ class VoteManager:
         # 2. Check Supabase (Persistent)
         if supabase:
             try:
-                res = supabase.table("votes").select("id").eq("image_id", image_id).eq("ip_hash", ip_hash).execute()
+                res = supabase.table("paper_extractor_votes").select("id").eq("image_id", image_id).eq("ip_hash", ip_hash).execute()
                 if res.data:
                     self.local_cache.add(cache_key) # Populate cache
                     return True
@@ -111,8 +111,8 @@ class VoteManager:
         # 2. Update Supabase
         if supabase:
             try:
-                # Assuming 'votes' table exists: id (int, auto), image_id (int), ip_hash (str, index)
-                supabase.table("votes").insert({"image_id": image_id, "ip_hash": ip_hash}).execute()
+                # Assuming 'paper_extractor_votes' table exists: id (int, auto), image_id (int), ip_hash (str, index)
+                supabase.table("paper_extractor_votes").insert({"image_id": image_id, "ip_hash": ip_hash}).execute()
                 return True
             except Exception as e:
                 logger.error(f"Failed to persist vote to Supabase: {e}")
@@ -149,17 +149,17 @@ async def cleanup_old_data():
     """Janitor: High Watermark Strategy."""
     if not supabase: return
     try:
-        count_res = supabase.table("chats").select("id", count="exact", head=True).execute()
+        count_res = supabase.table("paper_extractor_chats").select("id", count="exact", head=True).execute()
         current_count = count_res.count
         limit = 500000
         shrink_target = 250000
         
         if current_count > limit:
             logger.info("Janitor running cleanup")
-            res = supabase.table("chats").select("id").order("id", desc=True).range(shrink_target, shrink_target).limit(1).execute()
+            res = supabase.table("paper_extractor_chats").select("id").order("id", desc=True).range(shrink_target, shrink_target).limit(1).execute()
             if res.data:
                 cutoff_id = res.data[0]['id']
-                supabase.table("chats").delete().lt("id", cutoff_id).execute()
+                supabase.table("paper_extractor_chats").delete().lt("id", cutoff_id).execute()
     except Exception as e:
         logger.error(f"Janitor Error: {e}")
 
@@ -303,7 +303,7 @@ class ConnectionManager:
         if not supabase: return
         try:
             logger.info("Loading recent chats from Supabase...")
-            response = supabase.table("chats").select("*").order("created_at", desc=True).limit(50).execute()
+            response = supabase.table("paper_extractor_chats").select("*").order("created_at", desc=True).limit(50).execute()
             
             # Reset history to avoid dupes on reload
             self.chat_history.clear()
@@ -322,7 +322,7 @@ class ConnectionManager:
     def _update_leaderboard_cache(self):
         if not supabase: return
         try:
-            res = supabase.table("leaderboard").select("*").order("score", desc=True).limit(50).execute()
+            res = supabase.table("paper_extractor_leaderboard").select("*").order("score", desc=True).limit(50).execute()
             self.leaderboard_cache = [
                 {
                     "country": row.get("country"),
@@ -396,13 +396,15 @@ class ConnectionManager:
 
     def _persist_message(self, message: dict):
         try:
+            msg = message.get("msg")
+            if msg == "🛑 Slow down!": return # Don't persist system warning
+            
             msg_type = message.get("type")
             country = message.get("country", "Unknown")
             
             if msg_type == "chat":
-                msg = message.get("msg")
                 if len(msg) > 500: msg = msg[:500] # Truncate long messages
-                supabase.table("chats").insert({"country": country, "msg": msg}).execute()
+                supabase.table("paper_extractor_chats").insert({"country": country, "msg": msg}).execute()
                 self._upsert_stats(country, chat_inc=1)
                 self.chat_history.append(message)
 
@@ -415,14 +417,14 @@ class ConnectionManager:
 
     def _upsert_stats(self, country, score_inc=0, chat_inc=0):
         try:
-            res = supabase.table("leaderboard").select("*").eq("country", country).execute()
+            res = supabase.table("paper_extractor_leaderboard").select("*").eq("country", country).execute()
             if res.data:
                 curr = res.data[0]
                 new_score = curr['score'] + score_inc
                 new_chats = curr['chat_count'] + chat_inc
-                supabase.table("leaderboard").update({"score": new_score, "chat_count": new_chats}).eq("country", country).execute()
+                supabase.table("paper_extractor_leaderboard").update({"score": new_score, "chat_count": new_chats}).eq("country", country).execute()
             else:
-                supabase.table("leaderboard").insert({"country": country, "score": score_inc, "chat_count": chat_inc}).execute()
+                supabase.table("paper_extractor_leaderboard").insert({"country": country, "score": score_inc, "chat_count": chat_inc}).execute()
         except:
             pass
 
@@ -564,7 +566,7 @@ async def like_image(
         img_hash = hashlib.sha256(content).hexdigest()
         
         # Check DB
-        res = supabase.table("images").select("*").eq("image_hash", img_hash).execute()
+        res = supabase.table("paper_extractor_images").select("*").eq("image_hash", img_hash).execute()
         
         if res.data:
             row_id = res.data[0]['id']
@@ -573,7 +575,7 @@ async def like_image(
                  return {"status": "success", "msg": "Already in Hall of Fame!", "likes": res.data[0]['likes'], "id": row_id}
 
             new_likes = res.data[0]['likes'] + 1
-            supabase.table("images").update({ "likes": new_likes, "created_at": "now()" }).eq("id", row_id).execute()
+            supabase.table("paper_extractor_images").update({ "likes": new_likes, "created_at": "now()" }).eq("id", row_id).execute()
             vote_manager.register_vote(row_id, client_ip)
             logger.info(f"Image Liked (Bump): {row_id} by {client_ip}") # Audit
             return {"status": "success", "msg": "Image bumped up!", "likes": new_likes, "id": row_id}
@@ -584,12 +586,12 @@ async def like_image(
             current_count = count_res.count if count_res.count is not None else len(count_res.data)
 
             if current_count >= 50:
-                oldest_res = supabase.table("images").select("id", "storage_path").order("created_at", desc=False).limit(1).execute()
+                oldest_res = supabase.table("paper_extractor_images").select("id", "storage_path").order("created_at", desc=False).limit(1).execute()
                 if oldest_res.data:
                     old_node = oldest_res.data[0]
                     try: supabase.storage.from_("paper_images").remove([old_node['storage_path']])
                     except: pass
-                    supabase.table("images").delete().eq("id", old_node['id']).execute()
+                    supabase.table("paper_extractor_images").delete().eq("id", old_node['id']).execute()
 
             # Upload
             file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else "png"
@@ -602,7 +604,7 @@ async def like_image(
                 file_options={"content-type": file.content_type}
             )
             
-            res = supabase.table("images").insert({
+            res = supabase.table("paper_extractor_images").insert({
                 "doi": doi[:200], # Length Limit
                 "image_hash": img_hash,
                 "storage_path": storage_path,
@@ -633,10 +635,10 @@ async def vote_image(request: Request, vote: VoteRequest): # Pydantic Modeled
          raise HTTPException(status_code=403, detail="Duplicate vote")
     
     try:
-        res = supabase.table("images").select("likes").eq("id", vote.id).execute()
+        res = supabase.table("paper_extractor_images").select("likes").eq("id", vote.id).execute()
         if res.data:
             new_likes = res.data[0]['likes'] + 1
-            supabase.table("images").update({"likes": new_likes}).eq("id", vote.id).execute()
+            supabase.table("paper_extractor_images").update({"likes": new_likes}).eq("id", vote.id).execute()
             vote_manager.register_vote(vote.id, client_ip)
             logger.info(f"Vote Cast: {vote.id} by {client_ip}")
             return {"status": "success", "likes": new_likes}
@@ -655,7 +657,7 @@ async def get_trending(period: str = "all"):
         return {"status": "error", "images": []}
         
     try:
-        query = supabase.table("images").select("id, likes, storage_path, created_at, doi").order("likes", desc=True).limit(50)
+        query = supabase.table("paper_extractor_images").select("id, likes, storage_path, created_at, doi").order("likes", desc=True).limit(50)
         import datetime
         now = datetime.datetime.utcnow()
         if period == "week": query = query.gte("created_at", (now - datetime.timedelta(days=7)).isoformat())
