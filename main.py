@@ -142,6 +142,25 @@ class DoiRequest(BaseModel):
 class VoteRequest(BaseModel):
     id: int # or str depending on DB, assumed int
 
+def normalize_hall_of_fame_doi(value: Optional[str]) -> str:
+    if not value:
+        return ""
+
+    trimmed = value.strip()
+    if not trimmed:
+        return ""
+
+    lowered = trimmed.lower()
+    if lowered in {"manual_upload", "uploaded_file", "upload", "manual"}:
+        return ""
+
+    normalized = trimmed
+    for prefix in ['doi:', 'https://doi.org/', 'http://doi.org/', 'https://dx.doi.org/', 'http://dx.doi.org/', 'doi.org/', 'dx.doi.org/']:
+        if normalized.lower().startswith(prefix):
+            normalized = normalized[len(prefix):].strip()
+            break
+    return normalized if re.match(r'^10\.\S+/\S+$', normalized, re.IGNORECASE) else ""
+
 # --- 4. LIFESPAN & SCHEDULER ---
 scheduler = AsyncIOScheduler()
 
@@ -558,6 +577,8 @@ async def like_image(
     client_ip = forwarded.split(",")[0] if forwarded else request.client.host
 
     try:
+        clean_doi = normalize_hall_of_fame_doi(doi)
+
         # Validate File
         if not file.content_type.startswith("image/"):
              raise HTTPException(status_code=400, detail="Invalid image file")
@@ -606,7 +627,7 @@ async def like_image(
             )
             
             res = supabase.table("images").insert({
-                "doi": doi[:200], # Length Limit
+                "doi": clean_doi[:200], # Length Limit
                 "image_hash": img_hash,
                 "storage_path": storage_path,
                 "country": country[:10],
@@ -670,8 +691,7 @@ async def get_trending(period: str = "all"):
         for row in res.data:
             # No path traversal possibility here as it comes from DB
             row['url'] = f"{settings.supabase_url}/storage/v1/object/public/paper_images/{row['storage_path']}"
-            # Ensure DOI is passed
-            if 'doi' not in row: row['doi'] = ""
+            row['doi'] = normalize_hall_of_fame_doi(row.get('doi'))
             images.append(row)
         return {"status": "success", "images": images}
     except Exception as e:

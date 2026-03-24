@@ -6,6 +6,7 @@ const App = {
         deletedIndices: new Set(),
         lastSelectedIndex: null, // For Shift-Click Range Selection
         title: "paper",
+        currentDoi: '',
         filterThreshold: 20, // Default: Hide bottom 20%
         sortMode: 'original',
         debounceTimer: null,
@@ -34,6 +35,7 @@ const App = {
         imgCount: document.getElementById('imgCount'),
         downloadAllBtn: document.getElementById('downloadAllBtn'),
         trashBtn: document.getElementById('trashBtn'),
+        sortBtn: document.getElementById('sortBtn'),
         pdfBtn: document.getElementById('pdfBtn'), // Static Ref
         gallery: document.getElementById('gallery'),
         sizeSlider: document.getElementById('sizeSlider'),
@@ -74,13 +76,13 @@ const App = {
 
         if (this.ui.sortBtn) {
             this.ui.sortBtn.addEventListener('click', () => {
-                const modes = ['original', 'asc', 'desc'];
-                const icons = { 'original': 'fa-arrow-down-1-9', 'asc': 'fa-arrow-up-short-wide', 'desc': 'fa-arrow-down-wide-short' };
+                const modes = ['original', 'name-asc', 'name-desc', 'size-asc', 'size-desc'];
                 const currentIdx = modes.indexOf(this.state.sortMode);
                 this.state.sortMode = modes[(currentIdx + 1) % modes.length];
-                this.ui.sortBtn.innerHTML = `<i class="fa-solid ${icons[this.state.sortMode]}"></i>`;
+                this.updateSortButton();
                 this.renderGallery(this.state.images);
             });
+            this.updateSortButton();
         }
 
         // Init Chat
@@ -113,7 +115,7 @@ const App = {
             return;
         }
 
-        container.style.display = 'flex';
+        container.style.display = '';
         container.innerHTML = history.map(doi => {
             // Strip https://doi.org/ prefix for display
             const displayDoi = doi.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//i, '');
@@ -131,6 +133,67 @@ const App = {
             </div>
             `;
         }).join('');
+    },
+
+    updateSortButton() {
+        if (!this.ui.sortBtn) return;
+
+        const sortConfig = {
+            'original': {
+                icon: 'fa-sort',
+                title: 'Sort: Original Order'
+            },
+            'name-asc': {
+                icon: 'fa-arrow-down-1-9',
+                title: 'Sort: Name Ascending'
+            },
+            'name-desc': {
+                icon: 'fa-arrow-down-9-1',
+                title: 'Sort: Name Descending'
+            },
+            'size-asc': {
+                icon: 'fa-arrow-down-short-wide',
+                title: 'Sort: Size Ascending'
+            },
+            'size-desc': {
+                icon: 'fa-arrow-down-wide-short',
+                title: 'Sort: Size Descending'
+            }
+        };
+
+        const current = sortConfig[this.state.sortMode] || sortConfig['original'];
+        this.ui.sortBtn.innerHTML = `<i class="fa-solid ${current.icon}"></i>`;
+        this.ui.sortBtn.title = current.title;
+        this.ui.sortBtn.setAttribute('aria-label', current.title);
+    },
+
+    getImageSortName(img, originalIndex) {
+        if (img.filename) return img.filename;
+        if (img.name) return img.name;
+        return `image_${String(originalIndex + 1).padStart(3, '0')}`;
+    },
+
+    normalizeDoi(value) {
+        if (!value) return '';
+
+        const trimmed = String(value).trim();
+        if (!trimmed) return '';
+
+        const lowered = trimmed.toLowerCase();
+        if (['manual_upload', 'uploaded_file', 'upload', 'manual'].includes(lowered)) return '';
+
+        let normalized = trimmed;
+        const prefixes = [
+            /^doi:\s*/i,
+            /^https?:\/\/doi\.org\//i,
+            /^https?:\/\/dx\.doi\.org\//i,
+            /^doi\.org\//i,
+            /^dx\.doi\.org\//i
+        ];
+        prefixes.forEach((pattern) => {
+            normalized = normalized.replace(pattern, '');
+        });
+        return /^10\.\S+\/\S+$/i.test(normalized) ? normalized : '';
     },
 
     deleteHistory(doi) {
@@ -226,6 +289,7 @@ const App = {
         const count = (data.count !== undefined) ? data.count : (data.image_count || 0);
         this.showStatus(`Successfully extracted ${count} images!`, 'success');
         this.state.images = data.images || [];
+        this.state.currentDoi = this.normalizeDoi(data.doi);
 
         let rawTitle = data.title || "paper";
 
@@ -328,9 +392,21 @@ const App = {
 
         // Sort Logic
         let displayImages = [...allImages];
-        if (this.state.sortMode === 'asc') {
+        if (this.state.sortMode === 'name-asc') {
+            displayImages.sort((a, b) => {
+                const aIndex = this.state.images.indexOf(a);
+                const bIndex = this.state.images.indexOf(b);
+                return this.getImageSortName(a, aIndex).localeCompare(this.getImageSortName(b, bIndex), undefined, { numeric: true, sensitivity: 'base' });
+            });
+        } else if (this.state.sortMode === 'name-desc') {
+            displayImages.sort((a, b) => {
+                const aIndex = this.state.images.indexOf(a);
+                const bIndex = this.state.images.indexOf(b);
+                return this.getImageSortName(b, bIndex).localeCompare(this.getImageSortName(a, aIndex), undefined, { numeric: true, sensitivity: 'base' });
+            });
+        } else if (this.state.sortMode === 'size-asc') {
             displayImages.sort((a, b) => (a.width * a.height) - (b.width * b.height));
-        } else if (this.state.sortMode === 'desc') {
+        } else if (this.state.sortMode === 'size-desc') {
             displayImages.sort((a, b) => (b.width * b.height) - (a.width * a.height));
         }
 
@@ -783,14 +859,15 @@ const App = {
             `;
 
             // DOI Pill (Smart Extraction Button) - Restored and Improved
-            if (img.doi && img.doi.length > 5) {
+            const normalizedDoi = this.normalizeDoi(img.doi);
+            if (normalizedDoi) {
                 const doiPill = document.createElement('div');
                 doiPill.className = 'doi-pill';
                 doiPill.innerHTML = `<i class="fa-solid fa-flask-vial"></i> DOI`; // Text changed to DOI
-                doiPill.title = `Extract from this paper: ${img.doi}`;
+                doiPill.title = `Extract from this paper: ${normalizedDoi}`;
                 doiPill.onclick = (e) => {
                     e.stopPropagation();
-                    this.ui.doiInput.value = img.doi;
+                    this.ui.doiInput.value = normalizedDoi;
                     this.processDoi();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     if (window.innerWidth < 768) this.toggleChat();
@@ -855,7 +932,7 @@ const App = {
 
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('doi', this.ui.doiInput.value || 'manual_upload');
+            formData.append('doi', this.state.currentDoi || '');
             formData.append('country', this.state.myCountry);
 
             const res = await fetch('/api/like', {

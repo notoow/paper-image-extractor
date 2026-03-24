@@ -1336,13 +1336,14 @@ input[type=range]:active::-webkit-slider-thumb {
 /* History Chips */
 .search-history {
     margin-top: 15px;
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
     gap: 8px;
-    justify-content: center;
+    width: 100%;
     max-width: 600px;
     margin-left: auto;
     margin-right: auto;
+    align-items: stretch;
 }
 
 .history-chip {
@@ -1354,16 +1355,16 @@ input[type=range]:active::-webkit-slider-thumb {
     font-size: 0.8rem;
     color: var(--text-light);
     /* Restore color */
-    cursor: default;
+    cursor: pointer;
     transition: all 0.2s;
     border: 1px solid rgba(255, 255, 255, 0.05);
-    display: flex;
-    /* Keep layout fix */
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
-    /* Stick to ends */
-    gap: 6px;
-    width: auto;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     backdrop-filter: blur(4px);
 }
 
@@ -1804,10 +1805,8 @@ input[type=range]:active::-webkit-slider-thumb {
     /* 4. History Chips (Fix Visibility & Layout) */
     /* 4. History Chips (Force 2-per-row Layout) */
     .search-history {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: wrap;
-        justify-content: center;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
         gap: 8px;
         width: 100%;
         margin-top: 15px;
@@ -1815,16 +1814,12 @@ input[type=range]:active::-webkit-slider-thumb {
 
     .history-chip {
         display: grid;
-        grid-template-columns: max-content minmax(0, 1fr) 24px;
-        /* Fixed button slot */
+        grid-template-columns: max-content minmax(0, 1fr) auto;
         align-items: center;
         gap: 6px;
-
-        /* Safer width calc for 2-column with gap */
-        width: calc(50% - 6px);
+        width: 100%;
         min-width: 0;
-
-        padding: 4px 8px;
+        padding: 6px 10px;
         box-sizing: border-box;
         margin: 0;
     }
