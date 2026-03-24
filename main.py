@@ -140,7 +140,7 @@ class DoiRequest(BaseModel):
         return v
 
 class VoteRequest(BaseModel):
-    id: int # or str depending on DB, assumed int
+    id: str
 
 def normalize_hall_of_fame_doi(value: Optional[str]) -> str:
     if not value:
@@ -160,6 +160,42 @@ def normalize_hall_of_fame_doi(value: Optional[str]) -> str:
             normalized = normalized[len(prefix):].strip()
             break
     return normalized if re.match(r'^10\.\S+/\S+$', normalized, re.IGNORECASE) else ""
+
+def normalize_hall_of_fame_source_type(value: Optional[str], doi: Optional[str] = None) -> str:
+    if value:
+        normalized = value.strip().lower()
+        if normalized in {"doi", "pdf_upload"}:
+            return normalized
+    return "doi" if normalize_hall_of_fame_doi(doi) else "pdf_upload"
+
+def should_retry_without_source_type(error: Exception) -> bool:
+    message = str(error).lower()
+    return "source_type" in message and (
+        "column" in message
+        or "schema cache" in message
+        or "could not find" in message
+        or "does not exist" in message
+    )
+
+def insert_image_row(payload: Dict):
+    try:
+        return supabase.table("images").insert(payload).execute()
+    except Exception as exc:
+        if "source_type" in payload and should_retry_without_source_type(exc):
+            fallback = dict(payload)
+            fallback.pop("source_type", None)
+            return supabase.table("images").insert(fallback).execute()
+        raise
+
+def update_image_row(row_id: str, payload: Dict):
+    try:
+        return supabase.table("images").update(payload).eq("id", row_id).execute()
+    except Exception as exc:
+        if "source_type" in payload and should_retry_without_source_type(exc):
+            fallback = dict(payload)
+            fallback.pop("source_type", None)
+            return supabase.table("images").update(fallback).eq("id", row_id).execute()
+        raise
 
 # --- 4. LIFESPAN & SCHEDULER ---
 scheduler = AsyncIOScheduler()
@@ -527,6 +563,7 @@ async def process_doi(req: DoiRequest): # Validated by Pydantic
         
         if result["status"] == "success":
             result["doi"] = req.doi
+            result["source_type"] = "doi"
             result["pdf_base64"] = base64.b64encode(pdf_bytes).decode('utf-8')
             result["meta"] = metadata # Pass metadata to frontend
             return result
@@ -556,6 +593,8 @@ async def upload_pdf(file: UploadFile = File(...)):
              raise HTTPException(status_code=413, detail="File too large (Max 300MB)")
 
         result = await run_in_threadpool(extract_from_bytes, contents)
+        if result.get("status") == "success":
+            result["source_type"] = "pdf_upload"
         return result
     except HTTPException as e:
         raise e
@@ -568,6 +607,7 @@ async def like_image(
     request: Request,
     file: UploadFile = File(...),
     doi: str = Form(...),
+    source_type: str = Form("pdf_upload"),
     country: str = Form("Unknown")
 ):
     if not supabase:
@@ -578,6 +618,7 @@ async def like_image(
 
     try:
         clean_doi = normalize_hall_of_fame_doi(doi)
+        clean_source_type = normalize_hall_of_fame_source_type(source_type, clean_doi)
 
         # Validate File
         if not file.content_type.startswith("image/"):
@@ -591,13 +632,23 @@ async def like_image(
         res = supabase.table("images").select("*").eq("image_hash", img_hash).execute()
         
         if res.data:
-            row_id = res.data[0]['id']
+            existing_row = res.data[0]
+            row_id = existing_row['id']
             if vote_manager.has_voted(row_id, client_ip):
-                 # Return success state but normalized to act like nothing happened
-                 return {"status": "success", "msg": "Already in Hall of Fame!", "likes": res.data[0]['likes'], "id": row_id}
+                  # Return success state but normalized to act like nothing happened
+                 return {"status": "success", "msg": "Already in Hall of Fame!", "likes": existing_row['likes'], "id": row_id}
 
-            new_likes = res.data[0]['likes'] + 1
-            supabase.table("images").update({ "likes": new_likes, "created_at": "now()" }).eq("id", row_id).execute()
+            new_likes = existing_row['likes'] + 1
+            update_payload = { "likes": new_likes, "created_at": "now()" }
+            existing_source_type = normalize_hall_of_fame_source_type(existing_row.get("source_type"), existing_row.get("doi"))
+
+            if clean_source_type == "doi" and clean_doi and existing_source_type != "doi":
+                update_payload["doi"] = clean_doi[:200]
+                update_payload["source_type"] = "doi"
+            elif existing_row.get("source_type") is None:
+                update_payload["source_type"] = clean_source_type
+
+            update_image_row(str(row_id), update_payload)
             vote_manager.register_vote(row_id, client_ip)
             logger.info(f"Image Liked (Bump): {row_id} by {client_ip}") # Audit
             return {"status": "success", "msg": "Image bumped up!", "likes": new_likes, "id": row_id}
@@ -626,13 +677,14 @@ async def like_image(
                 file_options={"content-type": file.content_type}
             )
             
-            res = supabase.table("images").insert({
+            res = insert_image_row({
                 "doi": clean_doi[:200], # Length Limit
+                "source_type": clean_source_type,
                 "image_hash": img_hash,
                 "storage_path": storage_path,
                 "country": country[:10],
                 "likes": 1
-            }).execute()
+            })
             
             new_id = res.data[0]['id'] if res.data else None
             if new_id:
@@ -679,7 +731,7 @@ async def get_trending(period: str = "all"):
         return {"status": "error", "images": []}
         
     try:
-        query = supabase.table("images").select("id, likes, storage_path, created_at, doi").order("likes", desc=True).limit(50)
+        query = supabase.table("images").select("*").order("likes", desc=True).limit(50)
         import datetime
         now = datetime.datetime.utcnow()
         if period == "week": query = query.gte("created_at", (now - datetime.timedelta(days=7)).isoformat())
@@ -690,9 +742,15 @@ async def get_trending(period: str = "all"):
         images = []
         for row in res.data:
             # No path traversal possibility here as it comes from DB
-            row['url'] = f"{settings.supabase_url}/storage/v1/object/public/paper_images/{row['storage_path']}"
-            row['doi'] = normalize_hall_of_fame_doi(row.get('doi'))
-            images.append(row)
+            images.append({
+                "id": row.get("id"),
+                "likes": row.get("likes", 0),
+                "storage_path": row.get("storage_path"),
+                "created_at": row.get("created_at"),
+                "doi": normalize_hall_of_fame_doi(row.get("doi")),
+                "source_type": normalize_hall_of_fame_source_type(row.get("source_type"), row.get("doi")),
+                "url": f"{settings.supabase_url}/storage/v1/object/public/paper_images/{row['storage_path']}"
+            })
         return {"status": "success", "images": images}
     except Exception as e:
         logger.error(f"Trending Error: {e}")

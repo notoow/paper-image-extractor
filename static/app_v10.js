@@ -7,6 +7,7 @@ const App = {
         lastSelectedIndex: null, // For Shift-Click Range Selection
         title: "paper",
         currentDoi: '',
+        currentSourceType: 'pdf_upload',
         filterThreshold: 20, // Default: Hide bottom 20%
         sortMode: 'original',
         debounceTimer: null,
@@ -196,6 +197,16 @@ const App = {
         return /^10\.\S+\/\S+$/i.test(normalized) ? normalized : '';
     },
 
+    normalizeSourceType(value, doi = '') {
+        if (value) {
+            const normalized = String(value).trim().toLowerCase();
+            if (normalized === 'doi' || normalized === 'pdf_upload') {
+                return normalized;
+            }
+        }
+        return this.normalizeDoi(doi) ? 'doi' : 'pdf_upload';
+    },
+
     deleteHistory(doi) {
         let history = JSON.parse(localStorage.getItem('paper_history') || '[]');
         history = history.filter(h => h !== doi);
@@ -290,6 +301,7 @@ const App = {
         this.showStatus(`Successfully extracted ${count} images!`, 'success');
         this.state.images = data.images || [];
         this.state.currentDoi = this.normalizeDoi(data.doi);
+        this.state.currentSourceType = this.normalizeSourceType(data.source_type, data.doi);
 
         let rawTitle = data.title || "paper";
 
@@ -690,6 +702,8 @@ const App = {
         if (this.ui.gallery) this.ui.gallery.innerHTML = '';
         if (this.ui.resultSection) this.ui.resultSection.classList.remove('visible');
         this.state.images = [];
+        this.state.currentDoi = '';
+        this.state.currentSourceType = 'pdf_upload';
         this.state.selectedIndices.clear();
         this.state.deletedIndices.clear();
         this.updateDownloadBtn();
@@ -860,7 +874,8 @@ const App = {
 
             // DOI Pill (Smart Extraction Button) - Restored and Improved
             const normalizedDoi = this.normalizeDoi(img.doi);
-            if (normalizedDoi) {
+            const normalizedSourceType = this.normalizeSourceType(img.source_type, img.doi);
+            if (normalizedSourceType === 'doi' && normalizedDoi) {
                 const doiPill = document.createElement('div');
                 doiPill.className = 'doi-pill';
                 doiPill.innerHTML = `<i class="fa-solid fa-flask-vial"></i> DOI`; // Text changed to DOI
@@ -917,7 +932,7 @@ const App = {
         // We should add loading feedback via toast first since we don't have the button ref here (unless we pass it).
         // Actually renderGallery calls this... let's just use showStatus for loading.
 
-        this.showStatus('Adding to Hall of Fame... ⏳', 'normal');
+        this.showStatus('Adding to Hall of Fame...', 'normal');
 
         // Convert Base64 -> Blob -> File
         try {
@@ -933,6 +948,7 @@ const App = {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('doi', this.state.currentDoi || '');
+            formData.append('source_type', this.state.currentSourceType || 'pdf_upload');
             formData.append('country', this.state.myCountry);
 
             const res = await fetch('/api/like', {
