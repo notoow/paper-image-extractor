@@ -13,35 +13,38 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paper Prism - Extract Images & Figures from PDF Papers (Free Online Tool)</title>
+    <title>Extract Images From PDF Papers by DOI or Upload | Paper Prism</title>
     <meta name="description"
-        content="Extract high-resolution images, figures, and diagrams from PDF research papers instantly. Free online tool. Just paste DOI or upload PDF. No login required. Best for saving scientific figures.">
+        content="Extract high-resolution images, figures, charts, and diagrams from PDF research papers. Paste a DOI or upload a PDF manually. Free online PDF image extractor for researchers.">
     <meta name="keywords"
-        content="extract images from pdf, save figures from paper, pdf image extractor, research paper image downloader, extract diagrams from pdf, save high-res figures, sci-hub image extractor, online pdf to image, extract images from journal article">
+        content="extract images from pdf, save figures from paper, pdf image extractor, research paper image downloader, extract diagrams from pdf, save high-res figures, online pdf to image, extract images from journal article">
+    <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1">
     <link rel="canonical" href="https://notoow-paper-image-extractor.hf.space/">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://notoow-paper-image-extractor.hf.space/">
-    <meta property="og:title" content="Instant PDF Image Extractor - Paper Prism">
+    <meta property="og:title" content="Extract Images From PDF Papers by DOI or Upload | Paper Prism">
     <meta property="og:description"
-        content="Extract high-quality figures and diagrams from research papers instantly. Supports DOI & PDF upload. Free & No Login.">
+        content="Free online PDF image extractor for researchers. Paste a DOI or upload a PDF to save figures, charts, and diagrams from journal articles.">
     <meta property="og:image" content="https://notoow.github.io/paper-image-extractor/static/og-image.png">
+    <meta property="og:site_name" content="Paper Prism">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://notoow-paper-image-extractor.hf.space/">
-    <meta property="twitter:title" content="Instant PDF Image Extractor - Paper Prism">
+    <meta property="twitter:title" content="Extract Images From PDF Papers by DOI or Upload | Paper Prism">
     <meta property="twitter:description"
-        content="Extract high-quality figures and diagrams from research papers instantly. Free tool for researchers.">
+        content="Extract figures, charts, and diagrams from research paper PDFs with DOI input or manual upload. Free online tool for researchers.">
     <meta property="twitter:image" content="https://notoow.github.io/paper-image-extractor/static/og-image.png">
 
     <!-- JSON-LD Structured Data for SEO -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
+      "@type": "WebApplication",
       "name": "Paper Prism",
+      "url": "https://notoow-paper-image-extractor.hf.space/",
       "operatingSystem": "Web",
       "applicationCategory": "EducationalApplication",
       "offers": {
@@ -49,7 +52,47 @@
         "price": "0",
         "priceCurrency": "USD"
       },
-      "description": "High-quality PDF image extractor tailored for research papers and scientific journals. Extacts figures directly using DOI or PDF upload."
+      "description": "High-quality PDF image extractor tailored for research papers and scientific journals. Extract figures directly using DOI or PDF upload."
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do I extract images from a research paper PDF?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Paste a DOI to fetch a paper automatically or upload a PDF manually. Paper Prism then extracts embedded raster images such as figures, charts, microscopy panels, and diagrams."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use a DOI instead of uploading a PDF?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. If the paper is retrievable from its DOI, you can paste the DOI and extract images without manually downloading the PDF first."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does Paper Prism extract full pages?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Paper Prism focuses on embedded images inside the PDF rather than screenshotting entire pages. It works best for PDFs that contain raster figures."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why do some PDFs return no images?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Some academic PDFs are built mostly from vector graphics, text, or protected rendering layers. In those cases there may be few or no extractable raster images."
+          }
+        }
+      ]
     }
     </script>
 
@@ -58,8 +101,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
 
-    <!-- Favicon: Custom Prism Logo (Shadowed) -->
-    <link rel="icon" href="favicon.svg">
+    <!-- Favicon: Custom Prism Logo -->
+    <link rel="icon" href="/static/favicon.svg">
 
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -69,18 +112,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
     <!-- CSS -->
-    <link rel="stylesheet" href="/static/style.css?v=4.2">
+    <link rel="stylesheet" href="/static/style.css?v=4.3">
 </head>
 
 <body>
     <div class="container">
-        <!-- Header -->
         <header class="header">
             <h1>Paper Prism</h1>
-            <p>Extract every image from any paper, instantly.</p>
+            <p>Extract images, figures, charts, and diagrams from research paper PDFs by DOI or manual upload.</p>
         </header>
 
-        <!-- Main Search Box (Neumorphic) -->
         <div class="search-box">
             <div class="input-group">
                 <input type="text" id="doiInput" placeholder="Paste DOI (e.g., 10.1038/s41586-023-06288-x)"
@@ -90,12 +131,10 @@
                     <div class="spinner" id="btnSpinner"></div>
                 </button>
             </div>
-            <!-- Search History -->
             <div id="searchHistory" class="search-history" style="display: none;"></div>
 
             <div class="status-msg" id="statusMsg"></div>
 
-            <!-- Upload Option -->
             <div class="upload-area">
                 <span style="color: var(--text-light); font-size: 0.9rem;">or </span>
                 <span id="uploadLink" class="upload-link">upload PDF manually</span>
@@ -103,7 +142,6 @@
             </div>
         </div>
 
-        <!-- Action Buttons -->
         <div class="action-buttons">
             <a href="https://github.com/notoow/paper-image-extractor" target="_blank" class="neumorphic-btn">
                 <i class="fa-brands fa-github"></i> Star on GitHub
@@ -113,13 +151,35 @@
             </a>
         </div>
 
-        <!-- Result Section -->
+        <section class="seo-section seo-intro" aria-labelledby="seoIntroTitle">
+            <div class="seo-card seo-card-lg">
+                <p class="seo-eyebrow">Research Paper Image Extractor</p>
+                <h2 id="seoIntroTitle">A free online tool to extract images from PDF papers</h2>
+                <p>Paper Prism helps researchers, students, and academic teams save high-resolution figures from journal articles without taking screenshots. Paste a DOI to fetch a paper or upload a PDF manually, then extract embedded images such as charts, microscopy panels, diagrams, supplementary figures, and scanned visuals.</p>
+                <p>This PDF image extractor is useful for literature reviews, slide preparation, figure collection, classroom material, lab meetings, and quick reference archives. It works best when a paper contains embedded raster images rather than vector-only artwork.</p>
+            </div>
+
+            <div class="seo-grid">
+                <article class="seo-card">
+                    <h3>What You Can Extract</h3>
+                    <p>Figures, charts, microscopy images, scanned diagrams, supplemental image panels, and other embedded visuals inside journal PDFs.</p>
+                </article>
+                <article class="seo-card">
+                    <h3>How You Can Start</h3>
+                    <p>Paste a DOI when a paper is available online, or upload a PDF directly when you already have the file on your device.</p>
+                </article>
+                <article class="seo-card">
+                    <h3>Who It Is For</h3>
+                    <p>Researchers, graduate students, reviewers, science communicators, librarians, and anyone collecting visuals from academic papers.</p>
+                </article>
+            </div>
+        </section>
+
         <div class="result-section" id="resultSection">
-            <!-- Paper Metadata Display -->
             <div id="paperMeta" class="paper-meta-card" style="display: none;">
                 <h2 id="metaTitle">Loading Title...</h2>
                 <p id="metaDetails">
-                    <span id="metaJournal">Journal</span> • <span id="metaDate">Year</span>
+                    <span id="metaJournal">Journal</span> | <span id="metaDate">Year</span>
                 </p>
             </div>
 
@@ -127,9 +187,7 @@
                 <div class="header-left">
                     <h2>Extracted Images (<span id="imgCount">0</span>)</h2>
 
-                    <!-- Filter Controls -->
                     <div class="filter-controls">
-                        <!-- Slider Only (Toggle Removed) -->
                         <div class="slider-wrapper">
                             <div class="slider-tooltip" id="sliderTooltip">Hide Bottom 20%</div>
                             <input type="range" id="sizeSlider" min="0" max="95" value="20" step="5">
@@ -138,19 +196,15 @@
                 </div>
 
                 <div class="header-right" style="display: flex; gap: 15px; align-items: center;">
-                    <!-- Sort Button -->
                     <button id="sortBtn" class="neumorphic-icon-btn" title="Sort Order">
                         <i class="fa-solid fa-arrow-down-1-9"></i>
                     </button>
-                    <!-- PDF View Button (Hidden by default) -->
                     <button id="pdfBtn" class="neumorphic-icon-btn" title="View Original PDF" style="display: none;">
                         <i class="fa-solid fa-file-pdf"></i>
                     </button>
-                    <!-- Download All Button -->
                     <button id="downloadAllBtn" class="download-all-btn">
                         <i class="fa-solid fa-file-zipper"></i> Download All
                     </button>
-                    <!-- Trash Button -->
                     <button id="trashBtn" class="neumorphic-icon-btn trash-btn" title="Delete Selected">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
@@ -161,16 +215,58 @@
             </div>
         </div>
 
+        <section class="seo-section" aria-labelledby="howItWorksTitle">
+            <h2 id="howItWorksTitle" class="seo-section-title">How Paper Prism works</h2>
+            <div class="seo-grid seo-steps">
+                <article class="seo-card step-card">
+                    <span class="step-number">1</span>
+                    <h3>Paste a DOI or Upload a PDF</h3>
+                    <p>Start from a DOI when possible, or drag and drop a PDF file when you already downloaded the paper.</p>
+                </article>
+                <article class="seo-card step-card">
+                    <span class="step-number">2</span>
+                    <h3>Extract Embedded Figures</h3>
+                    <p>The app parses the PDF and pulls out embedded raster images such as diagrams, charts, and figure panels.</p>
+                </article>
+                <article class="seo-card step-card">
+                    <span class="step-number">3</span>
+                    <h3>Download the Images You Need</h3>
+                    <p>Preview results, filter by size, sort the gallery, and download individual images or save everything in one ZIP file.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="seo-section faq-section" aria-labelledby="faqTitle">
+            <h2 id="faqTitle" class="seo-section-title">Frequently asked questions</h2>
+            <div class="faq-list">
+                <article class="faq-item">
+                    <h3>Can I extract images from a DOI without downloading the PDF first?</h3>
+                    <p>Yes. If the paper can be retrieved from its DOI, you can paste the DOI directly and extract images without manually downloading the PDF first.</p>
+                </article>
+                <article class="faq-item">
+                    <h3>What kinds of images does this PDF extractor save?</h3>
+                    <p>Paper Prism targets embedded raster content in academic PDFs, including charts, microscopy panels, scanned illustrations, diagrams, and other figure images.</p>
+                </article>
+                <article class="faq-item">
+                    <h3>Why would a paper return no extractable images?</h3>
+                    <p>Some papers use mostly vector artwork, text, or protected layers instead of embedded raster images. In those cases the extractor may find few or no downloadable images.</p>
+                </article>
+                <article class="faq-item">
+                    <h3>Is Paper Prism free to use?</h3>
+                    <p>Yes. The tool is free to use and does not require account creation for normal extraction and download workflows.</p>
+                </article>
+            </div>
+        </section>
+
         <div class="ph-card-wrapper" style="margin-top: 40px; padding: 0 10px;">
             <a href="https://www.producthunt.com/products/paper-prism?embed=true&amp;utm_source=embed&amp;utm_medium=post_embed"
                 target="_blank" rel="noopener noreferrer"
                 style="display: inline-flex; align-items: center; justify-content: center; padding: 8px 16px; background: #ff6154; color: #fff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 600;">
-                Check it out on Product Hunt →
+                Check it out on Product Hunt ->
             </a>
         </div>
     </div>
 
-    <!-- Chat Widget (Paper War) -->
     <button class="chat-toggle" id="chatToggle" title="Open Global Chat">
         <i class="fa-regular fa-comments"></i>
         <span class="chat-badge" id="chatBadge"></span>
@@ -186,23 +282,20 @@
             <button class="close-chat" id="closeChat"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
-        <!-- Tabs -->
         <div class="social-tabs">
             <button class="tab-btn active" data-tab="chat">Live Chat</button>
             <button class="tab-btn" data-tab="trending">Hall of Fame</button>
         </div>
 
-        <!-- View: Chat -->
         <div id="view-chat" class="social-view active">
-            <!-- Mini Leaderboard -->
             <div class="chat-rank" id="leaderboard">
                 <div class="rank-item skeleton">Connecting...</div>
             </div>
 
             <div class="chat-messages" id="chatMessages">
                 <div class="system-msg">
-                    Who's researching right now? 👀<br>
-                    Chat to boost your country's rank! 🏆
+                    Who's researching right now?<br>
+                    Chat to boost your country's rank!
                 </div>
             </div>
 
@@ -212,7 +305,6 @@
             </div>
         </div>
 
-        <!-- View: Trending -->
         <div id="view-trending" class="social-view">
             <div class="trending-filter">
                 <button class="filter-chip active" data-period="all">All</button>
@@ -221,7 +313,6 @@
                 <button class="filter-chip" data-period="week">Week</button>
             </div>
             <div class="trending-grid" id="trendingGrid">
-                <!-- JS Injected -->
                 <div class="loading-state">
                     <div class="spinner" style="display:block; margin: 20px auto;"></div>
                     <p>Loading best shots...</p>
@@ -232,7 +323,6 @@
 
     <div id="toast-container"></div>
 
-    <!-- Core Logic -->
     <script src="/static/app_v10.js?v=10.5"></script>
 </body>
 

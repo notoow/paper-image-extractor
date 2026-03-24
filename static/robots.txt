@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://notoow-paper-image-extractor.hf.space/sitemap.xml

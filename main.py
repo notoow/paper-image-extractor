@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Form, Request, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, FileResponse
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.staticfiles import StaticFiles
@@ -789,7 +789,14 @@ def extract_from_bytes(pdf_bytes):
 # Static Files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+@app.get("/robots.txt", include_in_schema=False)
+async def read_robots():
+    return FileResponse("static/robots.txt", media_type="text/plain")
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def read_sitemap():
+    return FileResponse("static/sitemap.xml", media_type="application/xml")
+
 @app.get("/")
 async def read_root():
-    from fastapi.responses import FileResponse
     return FileResponse("static/index.html")
