@@ -757,34 +757,70 @@ async def get_trending(period: str = "all"):
         return {"status": "error", "detail": f"Database error: {str(e)}", "images": []}
 
 # Logic Extractor
+IMAGE_EXT_WHITELIST = {"png", "jpeg", "jpg", "gif", "webp"}
+
+
+def _collect_pdf_images(doc: fitz.Document) -> List[Dict]:
+    images = []
+    seen_xrefs = set()
+
+    for page_index in range(len(doc)):
+        for img in doc.get_page_images(page_index, full=True):
+            xref = img[0]
+            if xref in seen_xrefs:
+                continue
+
+            seen_xrefs.add(xref)
+
+            try:
+                base_image = doc.extract_image(xref)
+                image_bytes = base_image.get("image", b"")
+                mime = (base_image.get("ext") or "").lower()
+
+                if not image_bytes or mime not in IMAGE_EXT_WHITELIST:
+                    continue
+
+                b64 = base64.b64encode(image_bytes).decode("utf-8")
+                images.append({
+                    "base64": f"data:image/{mime};base64,{b64}",
+                    "width": base_image.get("width", 0),
+                    "height": base_image.get("height", 0),
+                    "size": len(image_bytes),
+                    "ext": mime,
+                })
+            except Exception as image_error:
+                logger.warning(f"Skipping image xref {xref}: {image_error}")
+
+    return images
+
+
 def extract_from_bytes(pdf_bytes):
+    doc = None
+    extraction_source = "original"
+
     try:
-        safe_pdf = sanitize_and_compress_pdf(pdf_bytes)
-        doc = fitz.open(stream=safe_pdf, filetype="pdf")
-        images = []
-        for i in range(len(doc)):
-            if len(images) > 50: break
-            for img in doc.get_page_images(i):
-                if len(images) > 50: break
-                try:
-                    xref = img[0]
-                    base_image = doc.extract_image(xref)
-                    image_bytes = base_image["image"]
-                    b64 = base64.b64encode(image_bytes).decode("utf-8")
-                    mime = base_image["ext"]
-                    if mime.lower() not in ['png', 'jpeg', 'jpg', 'gif', 'webp']: continue # Mime Whitelist
-                    
-                    images.append({
-                        "base64": f"data:image/{mime};base64,{b64}",
-                        "width": base_image["width"],
-                        "height": base_image["height"],
-                        "size": len(image_bytes),
-                        "ext": mime
-                    })
-                except: continue
-        return {"status": "success", "images": images, "count": len(images)}
+        try:
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        except Exception as open_error:
+            logger.warning(f"Original PDF open failed. Retrying with sanitized PDF: {open_error}")
+            safe_pdf = sanitize_and_compress_pdf(pdf_bytes)
+            doc = fitz.open(stream=safe_pdf, filetype="pdf")
+            extraction_source = "sanitized"
+
+        images = _collect_pdf_images(doc)
+        logger.info(f"Extracted {len(images)} images from {extraction_source} PDF stream")
+        return {
+            "status": "success",
+            "images": images,
+            "count": len(images),
+            "extraction_source": extraction_source,
+        }
     except Exception as e:
+        logger.error(f"Extraction failed: {e}")
         return {"status": "error", "detail": "Extraction failed"}
+    finally:
+        if doc is not None:
+            doc.close()
 
 # Static Files
 app.mount("/static", StaticFiles(directory="static"), name="static")

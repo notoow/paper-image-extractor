@@ -4,11 +4,12 @@ const App = {
         images: [], // All images (Raw Data)
         selectedIndices: new Set(),
         deletedIndices: new Set(),
+        autoHiddenIndices: new Set(),
         lastSelectedIndex: null, // For Shift-Click Range Selection
         title: "paper",
         currentDoi: '',
         currentSourceType: 'pdf_upload',
-        filterThreshold: 20, // Default: Hide bottom 20%
+        filterThreshold: 0, // Default: Show all
         sortMode: 'original',
         debounceTimer: null,
         // Chat State
@@ -61,8 +62,12 @@ const App = {
 
         // Slider Logic (Always Active)
         if (this.ui.sizeSlider) {
-            // Initial Tooltip
-            if (this.ui.sliderTooltip) this.ui.sliderTooltip.textContent = `Hide Bottom ${this.state.filterThreshold}%`;
+            this.ui.sizeSlider.value = String(this.state.filterThreshold);
+            if (this.ui.sliderTooltip) {
+                this.ui.sliderTooltip.textContent = this.state.filterThreshold === 0
+                    ? "Show All"
+                    : `Hide Bottom ${this.state.filterThreshold}%`;
+            }
 
             this.ui.sizeSlider.addEventListener('input', (e) => {
                 const percent = parseInt(e.target.value);
@@ -298,10 +303,16 @@ const App = {
 
     renderSuccess(data) {
         const count = (data.count !== undefined) ? data.count : (data.image_count || 0);
-        this.showStatus(`Successfully extracted ${count} images!`, 'success');
         this.state.images = data.images || [];
+        this.state.autoHiddenIndices = this.getAutoHiddenIndices(this.state.images);
         this.state.currentDoi = this.normalizeDoi(data.doi);
         this.state.currentSourceType = this.normalizeSourceType(data.source_type, data.doi);
+
+        const autoHiddenCount = this.state.autoHiddenIndices.size;
+        const successMessage = autoHiddenCount > 0
+            ? `Successfully extracted ${count} images. Auto-hid ${autoHiddenCount} tiny assets.`
+            : `Successfully extracted ${count} images!`;
+        this.showStatus(successMessage, 'success');
 
         let rawTitle = data.title || "paper";
 
@@ -373,6 +384,29 @@ const App = {
         return Uint8Array.from(binString, (m) => m.codePointAt(0));
     },
 
+    getAutoHiddenIndices(images) {
+        const indices = new Set();
+
+        images.forEach((img, index) => {
+            const width = Number(img.width || 0);
+            const height = Number(img.height || 0);
+            const size = Number(img.size || 0);
+            const maxSide = Math.max(width, height);
+            const area = width * height;
+
+            const isTinyAsset = size > 0
+                && size <= 160
+                && maxSide <= 26
+                && area <= 1024;
+
+            if (isTinyAsset) {
+                indices.add(index);
+            }
+        });
+
+        return indices;
+    },
+
     sendScoreEvent() {
         if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
             this.state.ws.send(JSON.stringify({
@@ -424,7 +458,7 @@ const App = {
 
         displayImages.forEach((img) => {
             const originalIndex = this.state.images.indexOf(img);
-            if (this.state.deletedIndices.has(originalIndex)) return;
+            if (this.state.deletedIndices.has(originalIndex) || this.state.autoHiddenIndices.has(originalIndex)) return;
 
             const area = img.width * img.height;
             const card = document.createElement('div');
@@ -704,8 +738,12 @@ const App = {
         this.state.images = [];
         this.state.currentDoi = '';
         this.state.currentSourceType = 'pdf_upload';
+        this.state.filterThreshold = 0;
         this.state.selectedIndices.clear();
         this.state.deletedIndices.clear();
+        this.state.autoHiddenIndices.clear();
+        if (this.ui.sizeSlider) this.ui.sizeSlider.value = '0';
+        if (this.ui.sliderTooltip) this.ui.sliderTooltip.textContent = 'Show All';
         this.updateDownloadBtn();
         const actionBtns = document.querySelector('.action-buttons');
         if (actionBtns) actionBtns.style.display = 'flex';
